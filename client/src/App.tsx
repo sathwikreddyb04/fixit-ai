@@ -4,6 +4,7 @@ import {
   SolutionPlan,
   UserFeedback,
   TroubleshootingResult,
+  FollowUpQuestion,
 } from "@fixit/shared";
 import { api } from "./services/api";
 import { Header } from "./components/Header";
@@ -16,7 +17,7 @@ import { EvidenceView } from "./features/analysis/EvidenceView";
 import { FollowUpModal } from "./features/follow-up/FollowUpModal";
 import { SolutionView } from "./features/solution/SolutionView";
 import { TroubleshootingModal } from "./features/feedback/TroubleshootingModal";
-import { AlertCircle, CheckCircle2, Sparkles, AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles, AlertTriangle, RefreshCw, UserCheck } from "lucide-react";
 
 export const App: React.FC = () => {
   const [isOffline, setIsOffline] = useState(false);
@@ -29,6 +30,7 @@ export const App: React.FC = () => {
   const [analysis, setAnalysis] = useState<ProblemAnalysis | null>(null);
   const [solution, setSolution] = useState<SolutionPlan | null>(null);
   const [troubleshootResult, setTroubleshootResult] = useState<TroubleshootingResult | null>(null);
+  const [pendingFollowUpQuestions, setPendingFollowUpQuestions] = useState<FollowUpQuestion[]>([]);
 
   // Modals & Panels
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
@@ -75,6 +77,7 @@ export const App: React.FC = () => {
     setAnalysis(null);
     setSolution(null);
     setTroubleshootResult(null);
+    setPendingFollowUpQuestions([]);
     setErrorMessage(null);
     setSuccessMessage(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -161,12 +164,24 @@ export const App: React.FC = () => {
       setErrorMessage(null);
 
       const res = await api.submitFeedback(feedback);
-      setIsTroubleshootingOpen(false);
+      const result = res as TroubleshootingResult;
 
-      if ("reassessedSafety" in res) {
-        setTroubleshootResult(res as TroubleshootingResult);
-        if (res.revisedSolution) {
-          setSolution(res.revisedSolution);
+      // Case 1: Needs more clarification — keep modal open, inject follow-up questions
+      if (result.needsMoreClarification && result.followUpQuestions?.length) {
+        setPendingFollowUpQuestions(result.followUpQuestions);
+        setTroubleshootResult(result);
+        // Keep modal open (don't close)
+        return;
+      }
+
+      // Case 2: Professional referral / safety stop — close modal, show referral card
+      setIsTroubleshootingOpen(false);
+      setPendingFollowUpQuestions([]);
+
+      if ("reassessedSafety" in result) {
+        setTroubleshootResult(result);
+        if (result.revisedSolution) {
+          setSolution(result.revisedSolution);
         }
       }
     } catch (err: any) {
@@ -291,26 +306,61 @@ export const App: React.FC = () => {
 
             {/* 4. Troubleshooting Result Banner (if session adaptation happened) */}
             {troubleshootResult && (
-              <div
-                className={`p-4 rounded-2xl border ${
-                  troubleshootResult.stoppedDueToRisk
-                    ? "bg-rose-50 border-rose-300 text-rose-900"
-                    : "bg-indigo-50 border-indigo-200 text-indigo-950"
-                } space-y-1`}
-              >
-                <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
-                  <span>Session Adaptation Applied</span>
-                  <span className="bg-indigo-200/60 px-2 py-0.5 rounded text-[10px]">
-                    Pass #{troubleshootResult.adaptationCount}
-                  </span>
-                </div>
-                <p className="text-xs font-medium leading-relaxed">
-                  {troubleshootResult.guidanceMessage}
-                </p>
-                <p className="text-[11px] opacity-80">
-                  <strong>Why changed:</strong> {troubleshootResult.explanationOfChange}
-                </p>
-              </div>
+              <>
+                {/* Professional Referral Card */}
+                {troubleshootResult.recommendedProfessional && (
+                  <div className="p-4 rounded-2xl border bg-amber-50 border-amber-300 text-amber-950 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-800">
+                      <UserCheck className="w-4 h-4" />
+                      <span>Professional Assistance Recommended</span>
+                    </div>
+                    <p className="text-xs font-medium leading-relaxed">
+                      {troubleshootResult.guidanceMessage}
+                    </p>
+                    {troubleshootResult.professionalReferralReason && (
+                      <p className="text-[11px] opacity-80">
+                        <strong>Reason:</strong> {troubleshootResult.professionalReferralReason}
+                      </p>
+                    )}
+                    <p className="text-[11px] opacity-70">
+                      Disclose the original stain type and all products previously applied when contacting a specialist.
+                    </p>
+                  </div>
+                )}
+
+                {/* Standard Adaptation Banner (only if not stopped or professional referral) */}
+                {!troubleshootResult.stoppedDueToRisk && !troubleshootResult.recommendedProfessional && (
+                  <div
+                    className="p-4 rounded-2xl border bg-indigo-50 border-indigo-200 text-indigo-950 space-y-1"
+                  >
+                    <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                      <span>Session Adaptation Applied</span>
+                      <span className="bg-indigo-200/60 px-2 py-0.5 rounded text-[10px]">
+                        Pass #{troubleshootResult.adaptationCount}
+                      </span>
+                    </div>
+                    <p className="text-xs font-medium leading-relaxed">
+                      {troubleshootResult.guidanceMessage}
+                    </p>
+                    <p className="text-[11px] opacity-80">
+                      <strong>Why changed:</strong> {troubleshootResult.explanationOfChange}
+                    </p>
+                  </div>
+                )}
+
+                {/* Safety Stop Banner */}
+                {troubleshootResult.stoppedDueToRisk && !troubleshootResult.recommendedProfessional && (
+                  <div className="p-4 rounded-2xl border bg-rose-50 border-rose-300 text-rose-900 space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+                      <AlertTriangle className="w-4 h-4" />
+                      <span>Troubleshooting Stopped — Safety Hazard</span>
+                    </div>
+                    <p className="text-xs font-medium leading-relaxed">
+                      {troubleshootResult.guidanceMessage}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
 
             {/* 5. Verified Solution Plan */}
@@ -331,9 +381,14 @@ export const App: React.FC = () => {
       {analysis && (
         <TroubleshootingModal
           isOpen={isTroubleshootingOpen}
-          onClose={() => setIsTroubleshootingOpen(false)}
+          onClose={() => {
+            setIsTroubleshootingOpen(false);
+            setPendingFollowUpQuestions([]);
+          }}
           problemId={analysis.problemId}
           defaultOutcome={troubleshootingOutcome}
+          currentPlan={solution}
+          pendingFollowUpQuestions={pendingFollowUpQuestions.length > 0 ? pendingFollowUpQuestions : undefined}
           onSubmitFeedback={handleSubmitFeedback}
           isLoading={loading}
         />

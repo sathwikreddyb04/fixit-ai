@@ -24,6 +24,7 @@ const SAFETY_RULES: SafetyRule[] = [
       /(vinegar|bleach).*hydrogen peroxide/i,
       /drain cleaner.*(bleach|ammonia|acid|cleaner)/i,
       /muriatic acid|hydrochloric acid.*(bleach|cleaner)/i,
+      /toxic fumes|chemical fumes|noxious (fumes|odor)|chlorine gas|mustard gas|fizzing and (smoking|fuming)/i,
     ],
     riskLevel: "critical",
     userFacingMessage:
@@ -103,7 +104,8 @@ const SAFETY_RULES: SafetyRule[] = [
       /(swallowed|ingested|drank).*(cleaner|detergent|bleach|soap|chemical)/i,
       /(splash|spill).*(in eye|eyes)/i,
       /severe.*(burn|wound|bleeding|pain|rash)/i,
-      /unconscious|fainted|difficulty breathing/i,
+      /unconscious|fainted|difficulty breathing|shortness of breath|dizzy.*(fumes|chemical|odor)|coughing.*(fumes|chemical)/i,
+      /burning eyes|eyes? (are )?burning|throat (is )?burning|lungs? (are )?burning/i,
     ],
     riskLevel: "critical",
     userFacingMessage:
@@ -264,6 +266,16 @@ export function sanitizeProposedPlan(
   // Prohibit water on live electrical equipment
   if (/(throw|pour|use|apply|spray)\s+(water|wet)\s+.*(outlet|breaker|socket|live\s+wire)/i.test(combined)) {
     violations.push("Model output recommended water on electrical outlet or equipment.");
+  }
+
+  // Prohibit excessively harsh or corrosive chemical escalation
+  if (/(muriatic acid|hydrochloric acid|pure bleach|pure ammonia|caustic soda|drain cleaner)\s+(on|for|to)/i.test(combined)) {
+    violations.push("Model output recommended unsafe corrosive chemical escalation.");
+  }
+
+  // Prohibit damaging abrasives on delicate surfaces
+  if (/(steel wool|wire brush|scouring pad|razor blade|sandpaper)\s+(on|to)\s+(wood|varnish|acrylic|delicate|silk|wool|leather|furniture)/i.test(combined)) {
+    violations.push("Model output recommended damaging abrasive escalation on delicate surface.");
   }
 
   if (assessment.escalationRequired && proposedSteps.length > 0) {

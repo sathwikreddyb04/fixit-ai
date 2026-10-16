@@ -63,6 +63,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Press clean paper towels or a dry white cloth gently on the stain to absorb excess liquid. Never rub back and forth, as rubbing pushes coffee deeper into the fabric fibers.",
         cautionNotes: "Avoid colored napkins that might bleed dye onto the garment.",
+        expectedOutcome: "Excess liquid lifted from surface without spreading the perimeter.",
+        stopCondition: "Stop and switch to gentle blotting if fabric starts to pill or abrade.",
       },
       {
         stepNumber: 2,
@@ -70,6 +72,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Turn the garment inside out and run cold tap water through the back of the stain. Flushing backwards pushes the coffee particles out rather than through the cloth.",
         cautionNotes: "Use cold water only. Hot water can cook milk proteins and permanently set tannins.",
+        expectedOutcome: "Coffee pigment is flushed outward from the weave.",
+        stopCondition: "Stop immediately if water temperature is warm or hot, which sets tannins.",
       },
       {
         stepNumber: 3,
@@ -77,6 +81,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Apply a few drops of mild liquid detergent or gentle dish soap to the damp spot. Work it in gently with your fingertips and let sit for 5 to 10 minutes.",
         isCheckedTestPatch: true,
+        expectedOutcome: "Surfactant molecules emulsify any oily coffee oils or milk residues.",
+        stopCondition: "Rinse immediately if any fabric dye bleeding is observed.",
       },
       {
         stepNumber: 4,
@@ -84,6 +90,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Rinse well in cold water. Inspect the fabric in natural light. If the stain has vanished, launder normally according to the care label.",
         cautionNotes: "NEVER put the garment in a hot dryer until the stain is 100% gone; heat will bake any residue permanently.",
+        expectedOutcome: "Fabric is clean and residue-free before normal laundering.",
+        stopCondition: "Do not place in a machine dryer if any shadow remains.",
       },
     ],
     actionsToAvoid: [
@@ -109,6 +117,9 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Mix 1 tablespoon of white distilled vinegar with 2 cups of cool water. Submerge the stained area for 15 minutes, then rinse with cold water.",
         cautionNotes: "Do not use vinegar on acetate or rayon fabrics.",
+        expectedOutcome: "Mild acetic acid dissolves stubborn oxidized tannin pigments.",
+        stopCondition: "Stop and rinse immediately if fabric texture stiffens or color shifts.",
+        isCheckedTestPatch: true,
       },
       {
         stepNumber: 2,
@@ -116,6 +127,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Dissolve 1 scoop of oxygen bleach powder (sodium percarbonate) in a basin of warm water. Soak the garment for 1 to 2 hours, then wash normally.",
         cautionNotes: "Do not use chlorine bleach on colored fabrics.",
+        expectedOutcome: "Oxygen release breaks down residual organic discoloration.",
+        stopCondition: "Do not use on silk, wool, or leather trim.",
       },
     ],
   },
@@ -161,12 +174,16 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         title: "Let the mud dry completely",
         instruction:
           "If the mud is still wet, wait until it dries into a dry crust. Wet mud easily smears and embeds deeper into canvas and knit meshes.",
+        expectedOutcome: "Soil forms brittle dry crust that can be removed mechanically.",
+        stopCondition: "Do not proceed with water or scrubbing while mud is still wet and sticky.",
       },
       {
         stepNumber: 2,
         title: "Dry brush the bulk crust away",
         instruction:
           "Clap shoes together outside, then use a dry toothbrush or soft brush to gently knock loose the dried soil flakes.",
+        expectedOutcome: "Major mineral and dirt buildup flakes off without moisture.",
+        stopCondition: "Stop and switch to softer bristles if shoe knit mesh pulls or snags.",
       },
       {
         stepNumber: 3,
@@ -174,6 +191,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Mix 1 teaspoon of gentle dish soap into a bowl of warm water. Dip the brush lightly, tap off excess water, and scrub the outsole and canvas in circular motions.",
         cautionNotes: "Do not saturate or submerge the entire shoe in a bucket unless the manufacturer explicitly permits it.",
+        expectedOutcome: "Light surfactant breaks down residual clay and dirt films.",
+        stopCondition: "Stop if dye runs from colored overlays or panels.",
       },
       {
         stepNumber: 4,
@@ -181,6 +200,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Wipe away soapy foam with a damp microfiber cloth. Stuff the inside with plain paper towels to maintain shape and air-dry away from direct radiators or heaters.",
         cautionNotes: "Never put sneakers in a high-heat clothes dryer; heat melts sole adhesives and shrinks EVA foam.",
+        expectedOutcome: "Shoe dries evenly while maintaining original structure.",
+        stopCondition: "Keep away from high heat sources.",
       },
     ],
     actionsToAvoid: [
@@ -197,6 +218,26 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
     ],
     whyTheseStepsExplanation:
       "Mud contains insoluble mineral particulates. Dry brushing removes 80% of soil mechanically without liquid capillary action driving pigment deep into the weave.",
+    alternativeSteps: [
+      {
+        stepNumber: 1,
+        title: "Baking soda and mild detergent paste (for stubborn clay staining)",
+        instruction:
+          "Mix 1 tablespoon of baking soda with 1 teaspoon of mild liquid detergent and a few drops of warm water into a soft paste. Work gently into persistent mud discoloration using a soft toothbrush.",
+        cautionNotes: "Do not use wire brushes or scrub violently; test on an unseen corner first.",
+        expectedOutcome: "The baking soda paste will gently lift embedded mineral particles from canvas or synthetic knit.",
+        stopCondition: "Stop immediately if shoe material frays, pills, or loses color.",
+        isCheckedTestPatch: true,
+      },
+      {
+        stepNumber: 2,
+        title: "Wipe with clean damp cloth and inspect",
+        instruction:
+          "Wipe away all baking soda paste with a damp microfiber cloth, then air-dry completely.",
+        expectedOutcome: "Residue is removed without water rings.",
+        stopCondition: "If discoloration remains after this gentle pass, consult a professional footwear cleaner.",
+      },
+    ],
   },
   {
     id: "wax_household_surface",
@@ -233,6 +274,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         title: "Chill the wax with ice",
         instruction:
           "Place ice cubes inside a plastic bag (to prevent moisture leaks) and rest it directly on the candle wax for 5 to 10 minutes until the wax is rock-hard and brittle.",
+        expectedOutcome: "Paraffin becomes brittle and loses surface adhesion.",
+        stopCondition: "Ensure the ice bag does not leak standing water onto finished wood joints.",
       },
       {
         stepNumber: 2,
@@ -240,6 +283,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Gently slide the edge of an old plastic card or plastic scraper underneath the hardened wax chunk. It should snap or peel away in large pieces.",
         cautionNotes: "NEVER use a metal knife, razor blade, or scissors on wood; it will gouge the varnish.",
+        expectedOutcome: "Bulk wax pops off cleanly in chunks without scratching.",
+        stopCondition: "Stop immediately if wood finish or paint shows signs of lifting.",
       },
       {
         stepNumber: 3,
@@ -247,12 +292,16 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Place a sheet of clean brown paper or paper towel over the thin wax film. Hover a hairdryer on low heat over the paper. The paper will wick and absorb the melted wax.",
         cautionNotes: "Keep the hairdryer moving; do not overheat wood veneer.",
+        expectedOutcome: "Porous paper wicks up the melted thin wax residue.",
+        stopCondition: "Keep heat moving; stop if surface feels hot to the touch.",
       },
       {
         stepNumber: 4,
         title: "Clean the surface",
         instruction:
           "Wipe down with a damp microfiber cloth and appropriate wood polish or gentle cleaner to remove any residual oil sheen.",
+        expectedOutcome: "Surface is smooth, clean, and free of wax haze.",
+        stopCondition: "Do not use harsh solvents.",
       },
     ],
     actionsToAvoid: [
@@ -269,6 +318,26 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
     ],
     whyTheseStepsExplanation:
       "Paraffin wax contracts and becomes brittle when frozen, breaking its surface adhesive bond without abrasive friction. The remainder wicks into porous paper under low heat.",
+    alternativeSteps: [
+      {
+        stepNumber: 1,
+        title: "Mineral oil or food-grade vegetable oil swab (for remaining wax haze)",
+        instruction:
+          "Apply 2 drops of food-grade mineral oil or vegetable oil to a clean microfiber cloth. Gently buff the dull wax film in circular motions; oil dissolves the paraffin bond without mechanical scratching.",
+        cautionNotes: "Do not use abrasive scouring pads, acetone, or razor blades.",
+        expectedOutcome: "Lingering wax film dissolves into the oil.",
+        stopCondition: "Stop if wood finish softens or becomes tacky.",
+        isCheckedTestPatch: true,
+      },
+      {
+        stepNumber: 2,
+        title: "Clean with mild soapy water and buff dry",
+        instruction:
+          "Wipe off the oil residue with a damp cloth with one drop of dish soap, then immediately dry with a fresh microfiber towel.",
+        expectedOutcome: "Surface is restored to its original clean finish.",
+        stopCondition: "Do not leave moisture sitting on wood or laminate seams.",
+      },
+    ],
   },
   {
     id: "dust_dirt_surfaces",
@@ -362,6 +431,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         title: "Scrape off solids and blot oil",
         instruction:
           "Use a dull butter knife or spoon edge to gently lift away solid food pieces. Blot fresh oil with paper towels.",
+        expectedOutcome: "Excess surface solids and liquid grease lifted without spreading.",
+        stopCondition: "Never use sharp edges that could slice fabric fibers.",
       },
       {
         stepNumber: 2,
@@ -369,18 +440,24 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Dab a drop of clear liquid dish soap directly onto the grease mark. Gently massage it in with your thumb and let sit for 10 minutes.",
         isCheckedTestPatch: true,
+        expectedOutcome: "Concentrated surfactants penetrate and break down lipid bonds.",
+        stopCondition: "Stop and rinse if detergent causes dye bleeding.",
       },
       {
         stepNumber: 3,
         title: "Flush with warm water from behind",
         instruction:
           "Hold the reverse side of the stain under warm running water to flush out emulsified oils.",
+        expectedOutcome: "Emulsified grease is driven out through the front of the weave.",
+        stopCondition: "Keep water warm, not scalding, to prevent setting any protein components.",
       },
       {
         stepNumber: 4,
         title: "Launder normally and air-dry to check",
         instruction:
           "Wash according to the fabric care label. Inspect while damp; repeat dish soap treatment if grease shadowing remains before dryer.",
+        expectedOutcome: "Clean fabric free of greasy sheen or food odor.",
+        stopCondition: "Do not place in clothes dryer until grease shadow is completely gone.",
       },
     ],
     actionsToAvoid: [
@@ -393,6 +470,25 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
     whenToStopAndSeekHelp: ["If garment is marked 'Dry Clean Only'"],
     whyTheseStepsExplanation:
       "Dish detergents contain concentrated lipophilic surfactants engineered to dissolve food grease that ordinary laundry wash can miss at low temperatures.",
+    alternativeSteps: [
+      {
+        stepNumber: 1,
+        title: "Dry cornstarch or baking soda oil poultice",
+        instruction:
+          "If a faint grease shadow remains after dish soap, apply a generous layer of dry baking soda or cornstarch onto the completely dry fabric. Let sit for 45 minutes to draw out deeply trapped lipids.",
+        expectedOutcome: "Dry capillary absorption draws residual oils out of synthetic or cotton fibers.",
+        stopCondition: "Brush off gently with a soft dry cloth; do not rub violently into the weave.",
+      },
+      {
+        stepNumber: 2,
+        title: "Warm water enzyme detergent pre-soak",
+        instruction:
+          "Submerge the garment in warm water with a scoop of enzyme laundry detergent for 30 minutes, then wash according to the care label.",
+        cautionNotes: "Do not soak silk or wool in enzyme detergents.",
+        expectedOutcome: "Protease and lipase enzymes digest stubborn organic food residues.",
+        stopCondition: "If the garment is marked dry clean only, take it to a professional cleaner instead.",
+      },
+    ],
   },
   {
     id: "vague_upholstery_stain",
@@ -442,6 +538,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         title: "Blot — do not rub — to absorb excess",
         instruction:
           "Press a clean white cloth gently onto the stain to absorb as much moisture as possible. Do not rub, which spreads the stain and works it into the fabric weave.",
+        expectedOutcome: "Excess surface liquid is safely absorbed into cloth.",
+        stopCondition: "Stop if rubbing motion begins to spread the stain.",
       },
       {
         stepNumber: 2,
@@ -449,6 +547,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Look for a care tag under the cushion or on the sofa frame. W = Water-safe cleaning; S = Solvent only; WS = Both; X = Vacuum only. This determines whether moisture-based cleaning is safe.",
         isCheckedTestPatch: true,
+        expectedOutcome: "Care code establishes whether water, solvent, or vacuuming only is permitted.",
+        stopCondition: "If tag says 'S' or 'X', do not apply any water-based solution.",
       },
     ],
     actionsToAvoid: [
@@ -466,6 +566,26 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
     ],
     whyTheseStepsExplanation:
       "Without knowing the material and stain type, only safe general first steps are given. Material-specific treatment is deferred until both the upholstery material and the staining substance are confirmed.",
+    alternativeSteps: [
+      {
+        stepNumber: 1,
+        title: "Targeted upholstery dry foam spot treatment",
+        instruction:
+          "Whisk 1 drop of mild liquid dish soap in 1 cup of warm water until stiff foam forms. Apply ONLY the dry foam on a white microfiber cloth and dab gently from the outside edge inward.",
+        cautionNotes: "Do not saturate interior cushions or batting.",
+        expectedOutcome: "Dry foam surfactant lifts surface grime without soaking deeper cushion padding.",
+        stopCondition: "Stop immediately if water rings or fabric discoloration appear.",
+        isCheckedTestPatch: true,
+      },
+      {
+        stepNumber: 2,
+        title: "Press dry with clean white absorbent towels",
+        instruction:
+          "Place thick layers of dry white paper towels over the area and press firmly to extract moisture, then air dry with room ventilation.",
+        expectedOutcome: "Moisture is extracted and fabric dries uniformly.",
+        stopCondition: "If discoloration remains after this gentle attempt, consult a professional upholstery service.",
+      },
+    ],
   },
   {
     id: "vague_fabric_spill",
@@ -526,6 +646,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         title: "Blot immediately — absorb excess without rubbing",
         instruction:
           "Use a clean white paper towel or cloth to gently blot (press and lift) the spill. Avoid rubbing, which pushes the substance deeper into the fabric and spreads the affected area.",
+        expectedOutcome: "Bulk spill is removed without spreading or forcing into fiber core.",
+        stopCondition: "Never scrub or rub vigorously.",
       },
       {
         stepNumber: 2,
@@ -533,6 +655,8 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         instruction:
           "Look at the inner seam label for care symbols: a tub icon means it is washable; 'Dry Clean Only' means take it to a professional. Do not apply any cleaning agent before checking.",
         isCheckedTestPatch: true,
+        expectedOutcome: "Care label confirms water tolerance and dry clean restrictions.",
+        stopCondition: "Stop and consult a dry cleaner if tag indicates dry clean only.",
       },
     ],
     actionsToAvoid: [
@@ -550,6 +674,26 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
     ],
     whyTheseStepsExplanation:
       "Only safe, reversible first steps are provided until the fabric type and spill substance are confirmed. Material-specific treatment is deferred to prevent damage from incorrect assumptions.",
+    alternativeSteps: [
+      {
+        stepNumber: 1,
+        title: "Gentle oxygen soak (color-safe)",
+        instruction:
+          "Dissolve 1 teaspoon of oxygen-based powder in 1 quart of cool water. Spot soak only the affected area for 20 minutes, then rinse thoroughly with cool water.",
+        cautionNotes: "Do not use on silk, wool, or dry-clean only garments.",
+        expectedOutcome: "Oxygen release safely oxidizes remaining organic stain pigments.",
+        stopCondition: "Stop immediately if any color fading or bleeding appears on seam test.",
+        isCheckedTestPatch: true,
+      },
+      {
+        stepNumber: 2,
+        title: "Rinse and air dry flat",
+        instruction:
+          "Rinse well in cool running water and lay flat to dry away from heat or direct sunlight.",
+        expectedOutcome: "Garment dries without heat setting residual shadows.",
+        stopCondition: "Do not place in clothes dryer until stain is confirmed gone.",
+      },
+    ],
   },
   {
     id: "care_label_interpretation",

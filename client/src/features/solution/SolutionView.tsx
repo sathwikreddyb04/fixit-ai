@@ -204,6 +204,18 @@ export const SolutionView: React.FC<SolutionViewProps> = ({
                         ⚠️ <strong>Caution:</strong> {step.cautionNotes}
                       </div>
                     )}
+                    {step.expectedOutcome && (
+                      <div className="text-[11px] text-emerald-800 bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-1 flex items-start gap-1.5">
+                        <span className="font-bold shrink-0">✓ Expected:</span>
+                        <span>{step.expectedOutcome}</span>
+                      </div>
+                    )}
+                    {step.stopCondition && (
+                      <div className="text-[11px] text-rose-800 bg-rose-50 p-2 rounded-lg border border-rose-200 mt-1 flex items-start gap-1.5">
+                        <span className="font-bold shrink-0">🛑 Stop if:</span>
+                        <span>{step.stopCondition}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -3,6 +3,7 @@ import {
   SolutionPlan,
   UserFeedback,
   TroubleshootingResult,
+  AttemptRecord,
 } from "@fixit/shared";
 
 export interface AnalyzeParams {
@@ -21,6 +22,11 @@ export interface SolutionParams {
 export interface TroubleshootParams {
   currentPlan: SolutionPlan;
   feedback: UserFeedback;
+  history?: UserFeedback[];
+  attemptHistory?: AttemptRecord[];
+  analysis?: ProblemAnalysis;
+  followUpAnswers?: Record<string, string>;
+  adaptationCount?: number;
 }
 
 export interface AIServiceInterface {

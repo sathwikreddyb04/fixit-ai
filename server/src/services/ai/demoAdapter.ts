@@ -361,67 +361,338 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
   }
 
   async troubleshoot(params: TroubleshootParams): Promise<TroubleshootingResult> {
-    const { currentPlan, feedback } = params;
+    const { currentPlan, feedback, history = [], attemptHistory = [], followUpAnswers = {} } = params;
+    const adaptationCount = params.adaptationCount || (history.length > 0 ? history.length : 1);
 
-    // 1. Reassess safety with new feedback data
-    const reassessedSafety = evaluateSafety(
-      `${feedback.whatWasTried} ${feedback.outcomeDescription} ${feedback.newObservations || ""}`
-    );
+    // 1. Compile all feedback text for safety evaluation
+    const feedbackText = [
+      feedback.whatWasTried,
+      feedback.outcomeDescription,
+      feedback.newObservations || "",
+      feedback.userComments || "",
+      ...(feedback.symptoms || []),
+      ...(feedback.productsUsed || []),
+      feedback.discoveredMaterialDetails || "",
+    ].join(" ");
 
+    // 2. Reassess safety with new feedback data
+    const reassessedSafety = evaluateSafety(feedbackText);
+
+    // Build prior attempts summary
+    const priorAttemptsAnalyzed: string[] = [];
+    if (attemptHistory.length > 0) {
+      for (const att of attemptHistory) {
+        const prod = att.productsUsed?.join(", ") || "unspecified";
+        const symp = att.symptomsReported?.join(", ") || "unresolved";
+        priorAttemptsAnalyzed.push(
+          `Attempt #${att.attemptNumber} (${att.planSummary}): Tried [${prod}] -> Outcome: [${symp}]`
+        );
+      }
+    } else {
+      priorAttemptsAnalyzed.push(
+        `Attempt #1: Tried [${feedback.whatWasTried}] -> Outcome: [${feedback.outcomeDescription}]`
+      );
+    }
+
+    // Safety Escalation Check
     if (reassessedSafety.escalationRequired) {
       return TroubleshootingResultSchema.parse({
         problemId: currentPlan.problemId,
-        adaptationCount: 1,
-        priorAttemptsAnalyzed: [feedback.whatWasTried],
+        adaptationCount,
+        priorAttemptsAnalyzed,
         reassessedSafety,
         stoppedDueToRisk: true,
+        recommendedProfessional: true,
+        professionalReferralReason: `Safety Hazard Detected: ${reassessedSafety.escalationReason}`,
         guidanceMessage:
-          `SAFETY ALERT: New information indicates risk (${reassessedSafety.escalationReason}). Routine troubleshooting suspended.`,
+          `SAFETY ALERT: ${reassessedSafety.userFacingMessage} ${reassessedSafety.emergencyGuidance || ""}`.trim(),
         explanationOfChange:
-          "Troubleshooting stopped because reported conditions now present chemical or physical safety hazards.",
+          "Troubleshooting stopped because reported conditions now present chemical, respiratory, or life-safety hazards.",
+        attemptHistory,
       });
     }
 
-    const scenario = findMatchingScenario(currentPlan.problemSummary);
+    // 3. Check for Professional Assistance Referral Conditions (Requirement 7)
+    const combinedHistoryText = [
+      currentPlan.problemSummary,
+      currentPlan.whatIsKnown.join(" "),
+      feedbackText,
+      ...priorAttemptsAnalyzed,
+      JSON.stringify(followUpAnswers),
+    ].join(" ").toLowerCase();
+
+    // Condition A: Delicate or Dry-Clean Only Materials
+    const isDelicateOrDryClean =
+      /silk|wool|cashmere|suede|nubuck|leather|velvet|antique|dry clean only|dry-clean only/i.test(combinedHistoryText);
+
+    // Condition B: Multiple Failed Attempts (>= 2 attempts already tried)
+    const hasMultipleFailedAttempts =
+      adaptationCount >= 2 || attemptHistory.length >= 2 || history.length >= 2 ||
+      /already tried (two|multiple|several)|tried.*again.*failed/i.test(feedbackText);
+
+    // Condition C: Adverse Surface Reaction (damage, bleeding, thinning)
+    const hasAdverseReaction =
+      /color (bleeding|bled|faded)|fabric (thinned|tore|frayed|holes?)|finish (peeling|clouded|stripped)|texture (damaged|rough|stiffened)/i.test(feedbackText);
+
+    if (isDelicateOrDryClean && (adaptationCount >= 1 || feedback.outcome === "did_not_work")) {
+      const reason = "The item involves delicate or dry-clean-restricted material (e.g. silk, wool, suede, or leather). Continuing water-based home DIY treatments risks permanent fiber distortion, water staining, or color loss.";
+      return TroubleshootingResultSchema.parse({
+        problemId: currentPlan.problemId,
+        adaptationCount,
+        priorAttemptsAnalyzed,
+        reassessedSafety,
+        stoppedDueToRisk: false,
+        recommendedProfessional: true,
+        professionalReferralReason: reason,
+        guidanceMessage:
+          "FixIt AI recommends consulting a certified professional cleaner. Disclose the original stain type and all products previously applied.",
+        explanationOfChange:
+          "Recommended professional care because delicate or dry-clean materials cannot safely tolerate repeated wet home agitation.",
+        attemptHistory,
+      });
+    }
+
+    if (hasMultipleFailedAttempts) {
+      const reason = "Multiple home DIY attempts have been completed without lifting the stain. Continuing further chemical application or rubbing risks permanent fiber abrasion or setting the stain permanently.";
+      return TroubleshootingResultSchema.parse({
+        problemId: currentPlan.problemId,
+        adaptationCount,
+        priorAttemptsAnalyzed,
+        reassessedSafety,
+        stoppedDueToRisk: false,
+        recommendedProfessional: true,
+        professionalReferralReason: reason,
+        guidanceMessage:
+          "FixIt AI advises stopping DIY attempts at this stage and consulting a professional cleaner or specialist. Repeated friction and moisture on set stains can permanently degrade fabric fibers.",
+        explanationOfChange:
+          "Ceased DIY recommendations after multiple failed passes to prevent permanent fabric or surface degradation.",
+        attemptHistory,
+      });
+    }
+
+    if (hasAdverseReaction) {
+      const reason = "Reported surface reaction (color bleeding, fabric texture change, or finish damage) indicates that further chemical or mechanical treatment may cause irreversible harm.";
+      return TroubleshootingResultSchema.parse({
+        problemId: currentPlan.problemId,
+        adaptationCount,
+        priorAttemptsAnalyzed,
+        reassessedSafety,
+        stoppedDueToRisk: false,
+        recommendedProfessional: true,
+        professionalReferralReason: reason,
+        guidanceMessage:
+          "FixIt AI recommends stopping all cleaning treatments immediately. Contact a professional restoration specialist to assess and preserve the surface finish.",
+        explanationOfChange:
+          "Stopped DIY procedure due to observed surface adverse reaction to prevent irreversible damage.",
+        attemptHistory,
+      });
+    }
+
+    // 4. Targeted Follow-up Questions When Information Is Missing (Requirement 2)
+    // Merge answers from followUpAnswers and feedback.followUpAnswers
+    const mergedAnswers = {
+      ...followUpAnswers,
+      ...(feedback.followUpAnswers || {}),
+    };
+
+    const neededFollowUps: FollowUpQuestion[] = [];
+
+    // If remaining symptoms are unclear
+    const symptomKnown =
+      mergedAnswers["troubleshoot_remaining_symptom"] ||
+      /faint|ring|shadow|stiff|yellow|brown|residue|bleeding|greasy/i.test(feedback.outcomeDescription + " " + (feedback.symptoms || []).join(" "));
+
+    if (!symptomKnown && !mergedAnswers["troubleshoot_remaining_symptom"]) {
+      neededFollowUps.push({
+        id: "troubleshoot_remaining_symptom",
+        question: "What does the remaining stain or area look like now?",
+        reason: "Different lingering residues (tannin rings vs deep grease shadows vs mineral crusts) require distinct secondary chemistries.",
+        type: "single_choice",
+        options: [
+          "Faint yellow or brown outline/ring",
+          "Dark, oily, or greasy shadow",
+          "Solid crust or stiff fiber texture",
+          "Unchanged original stain",
+        ],
+        required: true,
+      });
+    }
+
+    // If material was never confirmed anywhere
+    const materialKnown =
+      mergedAnswers["fabric_type"] ||
+      mergedAnswers["shoe_material"] ||
+      mergedAnswers["surface_type"] ||
+      mergedAnswers["surface_material"] ||
+      mergedAnswers["upholstery_material"] ||
+      mergedAnswers["troubleshoot_fabric_check"] ||
+      /cotton|denim|polyester|canvas|synthetic|laminate|wood/i.test(combinedHistoryText);
+
+    if (!materialKnown && !mergedAnswers["troubleshoot_fabric_check"]) {
+      neededFollowUps.push({
+        id: "troubleshoot_fabric_check",
+        question: "Did you find a care label or verify the material?",
+        reason: "Secondary soaks (such as dilute vinegar or oxygen bleach) must never be applied to delicate fibers or Dry Clean Only items.",
+        type: "single_choice",
+        options: [
+          "Machine-washable cotton or poly blend",
+          "Synthetic mesh or canvas",
+          "Delicate fabric (silk, wool, or rayon)",
+          "Care tag says Dry Clean Only",
+          "No label found / Unsure",
+        ],
+        required: true,
+      });
+    }
+
+    // If needed follow-up questions exist and have not yet been answered:
+    if (neededFollowUps.length > 0 && !feedback.followUpAnswers) {
+      return TroubleshootingResultSchema.parse({
+        problemId: currentPlan.problemId,
+        adaptationCount,
+        priorAttemptsAnalyzed,
+        reassessedSafety,
+        stoppedDueToRisk: false,
+        recommendedProfessional: false,
+        guidanceMessage:
+          "Before we recommend an alternative procedure, we need a couple of details about the remaining residue to ensure the next treatment is safe.",
+        explanationOfChange:
+          "Requested targeted follow-up questions to diagnose remaining residue symptoms before prescribing secondary chemistry.",
+        followUpQuestions: neededFollowUps,
+        needsMoreClarification: true,
+        attemptHistory,
+      });
+    }
+
+    // 5. Generate Adaptive Plan Without Repeating Failed Actions (Requirements 3, 4, 5)
+    const scenario = findMatchingScenario(currentPlan.problemSummary) ||
+                     findMatchingScenario(currentPlan.whatIsKnown.join(" "));
 
     if (scenario && scenario.alternativeSteps && scenario.alternativeSteps.length > 0) {
+      // Determine which alternative step to use, avoiding repeating what was already tried
+      const triedText = [
+        feedback.whatWasTried,
+        feedback.outcomeDescription,
+        ...priorAttemptsAnalyzed,
+      ].join(" ").toLowerCase();
+
+      // Filter alternatives to find one not already tried
+      let selectedAlternatives: SolutionStep[] = [];
+      let alternativeName = "";
+
+      // Check alternative steps
+      for (const altStep of scenario.alternativeSteps) {
+        const stepKeywords = altStep.title.toLowerCase().split(" ");
+        const alreadyTried = stepKeywords.some((w) => w.length > 4 && triedText.includes(w));
+        if (!alreadyTried) {
+          selectedAlternatives.push(altStep);
+        }
+      }
+
+      if (selectedAlternatives.length === 0) {
+        // All known alternatives already tried
+        selectedAlternatives = scenario.alternativeSteps;
+      }
+
+      alternativeName = selectedAlternatives[0]?.title || "Secondary Safe Alternative";
+
+      // Build ordered revised steps, ensuring:
+      // 1. Mandatory rinse of previous chemicals first (prevent chemical mixing)
+      // 2. Expected outcomes on each step
+      // 3. Stop conditions if situation worsens
+      const revisedSteps: SolutionStep[] = [
+        {
+          stepNumber: 1,
+          title: "Rinse away previous cleaning residues",
+          instruction:
+            "Before applying any secondary treatment, thoroughly rinse the area with clean cool tap water and blot dry with a clean white cloth. Never mix different cleaning agents on the same surface.",
+          cautionNotes: "Ensures no residual detergent or vinegar reacts with new products.",
+          expectedOutcome: "Surfactant and chemical residues from prior attempt are eliminated.",
+          stopCondition: "Do not apply secondary cleaner until area has been blotted free of previous products.",
+        },
+        ...selectedAlternatives.map((s, idx) => ({
+          ...s,
+          stepNumber: idx + 2,
+          isCheckedTestPatch: idx === 0 ? true : s.isCheckedTestPatch,
+          expectedOutcome:
+            s.expectedOutcome || "Targeted secondary action dissolves residual stubborn pigments.",
+          stopCondition:
+            s.stopCondition || "Stop immediately and rinse with cool water if color fading or fabric distortion occurs.",
+        })),
+      ];
+
+      const whatIsKnownUpdated = [
+        ...currentPlan.whatIsKnown.filter((k) => !k.startsWith("Prior attempt")),
+        `Prior attempt: Tried "${feedback.whatWasTried}" -> Outcome: "${feedback.outcomeDescription}"`,
+      ];
+      if (feedback.symptoms && feedback.symptoms.length > 0) {
+        whatIsKnownUpdated.push(`Remaining symptoms noted: ${feedback.symptoms.join(", ")}`);
+      }
+      if (mergedAnswers["troubleshoot_remaining_symptom"]) {
+        whatIsKnownUpdated.push(`Symptom clarified by user: ${mergedAnswers["troubleshoot_remaining_symptom"]}`);
+      }
+
       const revisedPlan: SolutionPlan = {
         ...currentPlan,
-        problemSummary: `Alternative Strategy for ${scenario.name}`,
-        whatIsKnown: [
-          ...currentPlan.whatIsKnown,
-          `Prior attempt: Tried "${feedback.whatWasTried}" -> Outcome: "${feedback.outcomeDescription}"`,
+        problemSummary: `Adapted Plan (Pass #${adaptationCount + 1}): ${alternativeName} for ${scenario.name}`,
+        whatIsKnown: whatIsKnownUpdated,
+        whatRemainsUncertain: [
+          "Penetration depth of residual set-in particles",
+          "Substrate tolerance to secondary agent (spot test required)",
         ],
-        steps: scenario.alternativeSteps,
+        steps: revisedSteps,
+        actionsToAvoid: [
+          `DO NOT repeat previously failed step: "${feedback.whatWasTried}"`,
+          "DO NOT combine cleaning agents without thorough rinsing between steps",
+          "DO NOT apply high heat or place in dryer while any mark remains",
+          ...scenario.actionsToAvoid,
+        ],
+        safetyPrecautions: [
+          "Mandatory spot test on an unseen seam before full application",
+          "Discontinue immediately if fabric texture changes or color bleeds",
+          ...scenario.safetyPrecautions,
+        ],
+        whenToStopAndSeekHelp: [
+          "If the stain does not improve after this secondary pass, stop DIY and consult a professional cleaner",
+          ...scenario.whenToStopAndSeekHelp,
+        ],
         whyTheseStepsExplanation:
-          "The initial gentle flush did not fully lift the set-in residue. Switching to a safe secondary alternative (mild dilute vinegar or oxygen soak) targeted at remaining set pigments.",
+          `Why this plan differs: Your prior attempt with "${feedback.whatWasTried}" did not fully lift the mark. Instead of repeating that failed method, FixIt AI adapted to a safe secondary procedure (${alternativeName}) calibrated for remaining set residues, preceded by a thorough rinse to prevent chemical mixing.`,
+        safetyAssessment: reassessedSafety,
+        canAdapt: true,
       };
 
       return TroubleshootingResultSchema.parse({
         problemId: currentPlan.problemId,
-        adaptationCount: 1,
-        priorAttemptsAnalyzed: [feedback.whatWasTried],
+        adaptationCount: adaptationCount + 1,
+        priorAttemptsAnalyzed,
         reassessedSafety,
         revisedSolution: revisedPlan,
         stoppedDueToRisk: false,
+        recommendedProfessional: false,
         guidanceMessage:
-          "Based on your outcome, FixIt AI has adapted the procedure to a conservative secondary method within this session.",
+          `Based on your result with "${feedback.whatWasTried}", FixIt AI adapted to a safe secondary method (${alternativeName}). Failed actions were not repeated.`,
         explanationOfChange:
-          "Replaced primary surface wash with a mild enzyme/acid soak calibrated for lingering residue.",
+          `Replaced failed "${feedback.whatWasTried}" with a safe secondary treatment (${alternativeName}). Added mandatory rinse step to prevent chemical mixing and spot-test requirement.`,
+        attemptHistory,
       });
     }
 
-    // Default troubleshooting advice
+    // Default conservative fallback
     return TroubleshootingResultSchema.parse({
       problemId: currentPlan.problemId,
-      adaptationCount: 1,
-      priorAttemptsAnalyzed: [feedback.whatWasTried],
+      adaptationCount: adaptationCount + 1,
+      priorAttemptsAnalyzed,
       reassessedSafety,
       stoppedDueToRisk: false,
+      recommendedProfessional: true,
+      professionalReferralReason:
+        "No further safe household DIY alternatives are available for this surface without risking permanent material abrasion or dye loss.",
       guidanceMessage:
-        "Because repeated home attempts may abrade or permanently set the mark, we recommend consulting a professional cleaner or the item manufacturer.",
+        "Because repeated home attempts risk permanently setting the mark or abrading the finish, FixIt AI recommends consulting a professional cleaner or the item manufacturer.",
       explanationOfChange:
-        "Conservative limitation: avoided proposing harsh chemical stripping to protect your item.",
+        "Avoided proposing harsh chemical stripping or aggressive friction to protect your item from permanent damage.",
+      attemptHistory,
     });
   }
 }

@@ -365,42 +365,110 @@ Output JSON matching this schema:
   }
 
   async troubleshoot(params: TroubleshootParams): Promise<TroubleshootingResult> {
-    const { currentPlan, feedback } = params;
+    const {
+      currentPlan,
+      feedback,
+      history = [],
+      attemptHistory = [],
+      followUpAnswers = {},
+      adaptationCount: passedAdaptationCount,
+    } = params;
 
-    const safetyCheck = evaluateSafety(
-      `${feedback.whatWasTried} ${feedback.outcomeDescription} ${feedback.newObservations || ""}`
-    );
+    const adaptationCount = passedAdaptationCount ?? (history.length + 1);
+
+    // Build safety check text including new symptoms and products
+    const safetyCheckText = [
+      feedback.whatWasTried,
+      feedback.outcomeDescription,
+      feedback.newObservations || "",
+      feedback.userComments || "",
+      ...(feedback.symptoms || []),
+      ...(feedback.productsUsed || []),
+    ].join(" ");
+
+    const safetyCheck = evaluateSafety(safetyCheckText);
 
     if (safetyCheck.escalationRequired) {
       return TroubleshootingResultSchema.parse({
         problemId: currentPlan.problemId,
-        adaptationCount: 1,
+        adaptationCount,
         priorAttemptsAnalyzed: [feedback.whatWasTried],
         reassessedSafety: safetyCheck,
         stoppedDueToRisk: true,
-        guidanceMessage:
-          "Troubleshooting suspended: new information triggered a safety hazard alert.",
+        recommendedProfessional: true,
+        professionalReferralReason: `Safety hazard detected: ${safetyCheck.escalationReason}`,
+        guidanceMessage: `SAFETY ALERT: ${safetyCheck.userFacingMessage} ${safetyCheck.emergencyGuidance || ""}`.trim(),
         explanationOfChange:
-          "Safety rules prioritize hazard prevention over continued DIY attempts.",
+          "Troubleshooting stopped because reported conditions now present chemical, respiratory, or life-safety hazards.",
+        attemptHistory,
       });
     }
 
+    // Build prior attempts summary for the prompt
+    const priorAttemptsAnalyzed: string[] = [];
+    if (attemptHistory.length > 0) {
+      for (const att of attemptHistory) {
+        const prod = att.productsUsed?.join(", ") || "unspecified";
+        const symp = att.symptomsReported?.join(", ") || "unresolved";
+        priorAttemptsAnalyzed.push(
+          `Attempt #${att.attemptNumber} (${att.planSummary}): Products [${prod}] → Outcome: [${symp}]`
+        );
+      }
+    } else {
+      priorAttemptsAnalyzed.push(
+        `Attempt #1: Tried [${feedback.whatWasTried}] → Outcome: [${feedback.outcomeDescription}]`
+      );
+    }
+
+    const followUpAnswersSummary = Object.keys(followUpAnswers).length > 0
+      ? Object.entries(followUpAnswers).map(([k, v]) => `${k}: ${v}`).join("\n")
+      : "None provided";
+
+    const stepStatusesSummary = feedback.stepStatuses?.length
+      ? feedback.stepStatuses.map((s) => `Step ${s.stepNumber} (${s.title}): ${s.status}`).join(", ")
+      : "Not reported";
+
     const promptText = `
-The user tried this solution and reported:
+You are a safety-first household cleaning and repair assistant performing adaptive troubleshooting.
+
+## Previous Attempts
+${priorAttemptsAnalyzed.join("\n")}
+
+## User's Latest Feedback
 Outcome: ${feedback.outcome}
 What was tried: ${feedback.whatWasTried}
-Result: ${feedback.outcomeDescription}
+What happened: ${feedback.outcomeDescription}
 New observations: ${feedback.newObservations || "None"}
+Symptoms noted: ${feedback.symptoms?.join(", ") || "None"}
+Products used: ${feedback.productsUsed?.join(", ") || "None"}
+Step statuses: ${stepStatusesSummary}
+Discovered material details: ${feedback.discoveredMaterialDetails || "None"}
 
-Prior plan was: ${currentPlan.problemSummary}
+## Follow-Up Answers
+${followUpAnswersSummary}
 
-Generate an adapted troubleshooting plan (or recommend professional care if further DIY risks ruining the item).
-Return JSON matching:
+## Prior Plan
+Summary: ${currentPlan.problemSummary}
+Steps: ${currentPlan.steps.map((s) => `${s.stepNumber}. ${s.title}: ${s.instruction}`).join("; ")}
+
+## Task
+Generate an adapted troubleshooting plan that:
+1. Does NOT repeat the previously failed approach: "${feedback.whatWasTried}"
+2. Uses a safer, different secondary method if available
+3. Includes a mandatory rinse step before any new chemical application
+4. Recommends professional help if: the material is delicate (silk/wool/suede/leather), 2+ attempts failed, or surface damage is reported
+5. Includes expectedOutcome and stopCondition on each step
+
+Return JSON:
 {
   "stoppedDueToRisk": boolean,
+  "recommendedProfessional": boolean,
+  "professionalReferralReason": string or null,
   "guidanceMessage": string,
   "explanationOfChange": string,
-  "revisedSolution": optional SolutionPlan object matching standard schema if safe
+  "needsMoreClarification": boolean,
+  "followUpQuestions": [] or array of {id, question, reason, type, options, required},
+  "revisedSolution": optional SolutionPlan object with steps including expectedOutcome and stopCondition
 }
 `;
 
@@ -412,13 +480,20 @@ Return JSON matching:
 
     return TroubleshootingResultSchema.parse({
       problemId: currentPlan.problemId,
-      adaptationCount: 1,
-      priorAttemptsAnalyzed: [feedback.whatWasTried],
+      adaptationCount,
+      priorAttemptsAnalyzed,
       reassessedSafety: safetyCheck,
-      revisedSolution: parsed.revisedSolution ? SolutionPlanSchema.parse(parsed.revisedSolution) : undefined,
+      revisedSolution: parsed.revisedSolution
+        ? SolutionPlanSchema.parse(parsed.revisedSolution)
+        : undefined,
       stoppedDueToRisk: parsed.stoppedDueToRisk || false,
+      recommendedProfessional: parsed.recommendedProfessional || false,
+      professionalReferralReason: parsed.professionalReferralReason || undefined,
       guidanceMessage: parsed.guidanceMessage || "Adapted recommendation based on your feedback.",
       explanationOfChange: parsed.explanationOfChange || "Session-based adaptation applied.",
+      needsMoreClarification: parsed.needsMoreClarification || false,
+      followUpQuestions: parsed.followUpQuestions || [],
+      attemptHistory,
     });
   }
 }

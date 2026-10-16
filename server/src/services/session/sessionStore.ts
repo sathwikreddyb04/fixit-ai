@@ -3,6 +3,7 @@ import {
   SolutionPlan,
   UserFeedback,
   TroubleshootingResult,
+  AttemptRecord,
 } from "@fixit/shared";
 
 export interface SessionData {
@@ -14,6 +15,7 @@ export interface SessionData {
   solution?: SolutionPlan;
   feedbackHistory: UserFeedback[];
   troubleshootingHistory: TroubleshootingResult[];
+  attemptHistory: AttemptRecord[];
 }
 
 export class SessionStore {
@@ -30,6 +32,7 @@ export class SessionStore {
         lastActiveAt: Date.now(),
         feedbackHistory: [],
         troubleshootingHistory: [],
+        attemptHistory: [],
       };
       this.store.set(problemId, session);
     } else {

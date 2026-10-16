@@ -95,6 +95,8 @@ export const SolutionStepSchema = z.object({
   instruction: z.string(),
   cautionNotes: z.string().optional(),
   isCheckedTestPatch: z.boolean().optional(),
+  expectedOutcome: z.string().optional(),
+  stopCondition: z.string().optional(),
 });
 export type SolutionStep = z.infer<typeof SolutionStepSchema>;
 
@@ -116,7 +118,29 @@ export const SolutionPlanSchema = z.object({
 });
 export type SolutionPlan = z.infer<typeof SolutionPlanSchema>;
 
-// --- Feedback & Troubleshooting Schema ---
+// --- Feedback & Troubleshooting Schemas ---
+export const StepStatusEnum = z.enum(["succeeded", "failed", "skipped", "untried"]);
+export type StepStatus = z.infer<typeof StepStatusEnum>;
+
+export const StepAttemptSchema = z.object({
+  stepNumber: z.number(),
+  title: z.string(),
+  status: StepStatusEnum,
+});
+export type StepAttempt = z.infer<typeof StepAttemptSchema>;
+
+export const AttemptRecordSchema = z.object({
+  attemptNumber: z.number(),
+  timestamp: z.string(),
+  planSummary: z.string(),
+  stepsAttempted: z.array(StepAttemptSchema).optional(),
+  productsUsed: z.array(z.string()).optional(),
+  symptomsReported: z.array(z.string()).optional(),
+  outcome: z.enum(["worked", "did_not_work", "need_alternative", "abandoned"]),
+  userNotes: z.string().optional(),
+});
+export type AttemptRecord = z.infer<typeof AttemptRecordSchema>;
+
 export const UserFeedbackSchema = z.object({
   problemId: z.string(),
   outcome: z.enum(["worked", "did_not_work", "need_alternative", "abandoned"]),
@@ -124,6 +148,11 @@ export const UserFeedbackSchema = z.object({
   outcomeDescription: z.string(),
   newObservations: z.string().optional(),
   userComments: z.string().optional(),
+  stepStatuses: z.array(StepAttemptSchema).optional(),
+  productsUsed: z.array(z.string()).optional(),
+  symptoms: z.array(z.string()).optional(),
+  discoveredMaterialDetails: z.string().optional(),
+  followUpAnswers: z.record(z.string()).optional(),
 });
 export type UserFeedback = z.infer<typeof UserFeedbackSchema>;
 
@@ -134,8 +163,13 @@ export const TroubleshootingResultSchema = z.object({
   reassessedSafety: SafetyAssessmentSchema,
   revisedSolution: SolutionPlanSchema.optional(),
   stoppedDueToRisk: z.boolean(),
+  recommendedProfessional: z.boolean().optional(),
+  professionalReferralReason: z.string().optional(),
   guidanceMessage: z.string(),
   explanationOfChange: z.string(),
+  followUpQuestions: z.array(FollowUpQuestionSchema).optional(),
+  needsMoreClarification: z.boolean().optional(),
+  attemptHistory: z.array(AttemptRecordSchema).optional(),
 });
 export type TroubleshootingResult = z.infer<typeof TroubleshootingResultSchema>;
 

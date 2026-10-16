@@ -4,6 +4,7 @@ import {
   AnalyzeProblemRequestSchema,
   SubmitFollowUpAnswersRequestSchema,
   UserFeedbackSchema,
+  AttemptRecord,
 } from "@fixit/shared";
 import { config } from "../config";
 import { validateImageBuffer } from "../utils/fileValidation";
@@ -219,6 +220,19 @@ router.post(
       const feedback = parsedFeedback.data;
       session.feedbackHistory.push(feedback);
 
+      // Build an AttemptRecord for this attempt
+      const attemptRecord: AttemptRecord = {
+        attemptNumber: session.attemptHistory.length + 1,
+        timestamp: new Date().toISOString(),
+        planSummary: session.solution?.problemSummary || "Unknown plan",
+        stepsAttempted: feedback.stepStatuses,
+        productsUsed: feedback.productsUsed,
+        symptomsReported: feedback.symptoms,
+        outcome: feedback.outcome as AttemptRecord["outcome"],
+        userNotes: feedback.userComments,
+      };
+      session.attemptHistory.push(attemptRecord);
+
       // If outcome was successful or abandoned, record and acknowledge
       if (feedback.outcome === "worked" || feedback.outcome === "abandoned") {
         SessionStore.save(session);
@@ -238,9 +252,25 @@ router.post(
       // If solution did not work or alternative needed, trigger adaptation
       const aiService = AIFactory.getService();
       const troubleshootResult = await aiService.troubleshoot({
-        currentPlan: session.solution,
+        currentPlan: session.solution!,
         feedback,
+        history: session.feedbackHistory.slice(0, -1), // previous feedbacks excluding current
+        attemptHistory: session.attemptHistory,
+        analysis: session.analysis,
+        followUpAnswers: {
+          ...(session.followUpAnswers || {}),
+          ...(feedback.followUpAnswers || {}),
+        },
+        adaptationCount: session.troubleshootingHistory.length + 1,
       });
+
+      // Merge any follow-up answers from this feedback into session
+      if (feedback.followUpAnswers) {
+        session.followUpAnswers = {
+          ...(session.followUpAnswers || {}),
+          ...feedback.followUpAnswers,
+        };
+      }
 
       session.troubleshootingHistory.push(troubleshootResult);
       if (troubleshootResult.revisedSolution) {
@@ -259,6 +289,34 @@ router.post(
         error: err.message || "Failed to process feedback.",
       });
     }
+  }
+);
+
+/**
+ * GET /api/v1/problems/:problemId/history
+ * Returns the attempt history for a session
+ */
+router.get(
+  "/:problemId/history",
+  (req: Request, res: Response): void => {
+    const { problemId } = req.params;
+    const session = SessionStore.get(problemId);
+    if (!session) {
+      res.status(404).json({
+        success: false,
+        error: "Problem session not found or expired.",
+      });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      data: {
+        problemId,
+        attemptHistory: session.attemptHistory,
+        troubleshootingHistory: session.troubleshootingHistory,
+        adaptationCount: session.troubleshootingHistory.length,
+      },
+    });
   }
 );
 
