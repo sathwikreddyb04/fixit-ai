@@ -40,7 +40,12 @@ export const TroubleshootingModal: React.FC<TroubleshootingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="troubleshoot-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-slate-200">
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -49,7 +54,7 @@ export const TroubleshootingModal: React.FC<TroubleshootingModalProps> = ({
               <RefreshCw className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-slate-900">
+              <h3 id="troubleshoot-title" className="font-bold text-base text-slate-900">
                 Troubleshoot & Adapt Solution
               </h3>
               <p className="text-xs text-slate-500">
@@ -59,7 +64,8 @@ export const TroubleshootingModal: React.FC<TroubleshootingModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label="Close troubleshooting dialog"
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             <X className="w-5 h-5" />
           </button>

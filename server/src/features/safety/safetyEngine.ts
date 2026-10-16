@@ -17,28 +17,56 @@ const SAFETY_RULES: SafetyRule[] = [
     id: "chemical_mixing_hazard",
     category: "Chemical Reaction Hazard",
     patterns: [
-      /bleach.*(ammonia|vinegar|acid|alcohol|windex|drain)/i,
-      /(ammonia|vinegar|acid|alcohol).*bleach/i,
-      /mix(ing)?.*(cleaner|chemical|bleach|detergent|acid)/i,
-      /hydrogen peroxide.*vinegar/i,
-      /drain cleaner.*(bleach|ammonia|acid)/i,
+      /bleach.*(ammonia|vinegar|acid|alcohol|windex|drain|toilet|rubbing alcohol|isopropanol|peroxide)/i,
+      /(ammonia|vinegar|acid|alcohol|windex|drain|toilet|rubbing alcohol|isopropanol|peroxide).*bleach/i,
+      /mix(ing)?.*(cleaner|chemical|bleach|detergent|acid|ammonia|vinegar)/i,
+      /hydrogen peroxide.*(vinegar|bleach)/i,
+      /(vinegar|bleach).*hydrogen peroxide/i,
+      /drain cleaner.*(bleach|ammonia|acid|cleaner)/i,
+      /muriatic acid|hydrochloric acid.*(bleach|cleaner)/i,
     ],
     riskLevel: "critical",
     userFacingMessage:
-      "DANGER: Mixing household cleaning chemicals (especially bleach with ammonia, acids, or vinegar) can release toxic, lethal chlorine or chloramine gas.",
+      "DANGER: Mixing household cleaning chemicals (especially bleach with ammonia, vinegar, rubbing alcohol, or acids) can produce toxic, lethal chlorine, chloramine, or chloroform gas.",
     emergencyGuidance:
-      "Immediately stop. Do not mix these chemicals. If fumes are present, evacuate the room and open windows only if safe. If anyone feels dizziness, burning eyes, or difficulty breathing, call local emergency services or Poison Help immediately.",
+      "Immediately stop. Do not mix these chemicals. If fumes are present, evacuate the room immediately. Open windows only if safe from outside the room. If anyone experiences eye irritation, burning lungs, dizziness, or shortness of breath, call local emergency services (911 / 112) or Poison Help (US: 1-800-222-1222) immediately.",
     permittedActions: [
-      "Evacuate room immediately if fumes or strong odor are present",
-      "Ventilate the area only if safe to do so",
-      "Call Poison Control or Emergency Services if exposed",
+      "Evacuate all occupants and pets immediately if fumes or strong odor are present",
+      "Call Poison Control (1-800-222-1222) or Emergency Services (911 / 112) if exposed",
+      "Ventilate the area from a safe exterior location only if safe to do so",
     ],
     prohibitedActions: [
-      "DO NOT mix cleaning chemicals or solutions",
-      "DO NOT remain in a poorly ventilated room with chemical fumes",
-      "DO NOT add hot water or other chemicals to the mixture",
+      "DO NOT mix cleaning chemicals or combine multiple commercial cleaners",
+      "DO NOT remain in a room with chemical fumes or strong odors",
+      "DO NOT add hot water, acids, or dish soaps to bleach solutions",
     ],
     escalationReason: "Potentially lethal gas hazard from incompatible chemical combination.",
+  },
+  {
+    id: "cooking_grease_fire_hazard",
+    category: "Grease & Oil Fire Hazard",
+    patterns: [
+      /grease fire|oil fire|burning oil|pan.*(caught fire|on fire)|oil.*(caught fire|on fire)/i,
+      /(fire|flames).*stove/i,
+      /water.*(grease fire|burning oil|hot oil)/i,
+    ],
+    riskLevel: "critical",
+    userFacingMessage:
+      "CRITICAL FIRE SAFETY ALERT: Burning cooking oil or grease fires must NEVER be treated with water.",
+    emergencyGuidance:
+      "NEVER throw water on a grease fire (water instantly vaporizes, exploding oil into a massive fireball). Turn off the heat source if safe. Carefully slide a metal lid or baking sheet over the pan to smother flames, or use a certified Class B or K fire extinguisher. If fire spreads, evacuate immediately and call 911 / 112.",
+    permittedActions: [
+      "Turn off the heat source ONLY if you can reach it safely",
+      "Slide a metal lid or cookie sheet over the pan to smother flames",
+      "Use a Class B or K dry chemical or fire extinguisher",
+      "Evacuate immediately and call emergency services if flames escape the pan",
+    ],
+    prohibitedActions: [
+      "NEVER throw water or wet towels on a grease or oil fire (causes explosive fireball)",
+      "DO NOT move or carry a burning pan (spills burning liquid)",
+      "DO NOT use flour or baking powder (flour is combustible)",
+    ],
+    escalationReason: "Imminent danger of explosive fire spread from cooking oil combustion.",
   },
   {
     id: "electrical_fire_hazard",
@@ -150,10 +178,19 @@ const SAFETY_RULES: SafetyRule[] = [
 
 /**
  * Server-enforced safety analysis.
- * Analyzes raw user text and any model-proposed plan to ensure zero dangerous instructions escape.
+ * Analyzes raw user text, any visible image observations, and model-proposed plan steps
+ * to ensure zero dangerous instructions escape.
  */
-export function evaluateSafety(text: string, proposedActions?: string[]): SafetyAssessment {
-  const combinedText = [text, ...(proposedActions || [])].join(" ");
+export function evaluateSafety(
+  text: string,
+  proposedActions?: string[],
+  imageObservations?: string[]
+): SafetyAssessment {
+  const combinedText = [
+    text,
+    ...(proposedActions || []),
+    ...(imageObservations || []),
+  ].join(" ");
 
   for (const rule of SAFETY_RULES) {
     for (const pattern of rule.patterns) {
@@ -179,15 +216,15 @@ export function evaluateSafety(text: string, proposedActions?: string[]): Safety
     userFacingMessage:
       "Standard household scenario within low-risk care guidelines. Always perform an inconspicuous spot test first.",
     permittedActions: [
-      "Perform a spot test in a hidden area",
+      "Perform an inconspicuous spot test on a hidden seam first",
       "Use mild, material-appropriate cleaning agents",
       "Work in a well-lit, ventilated space",
-      "Blot gently rather than rubbing aggressively",
+      "Blot gently from perimeter inward rather than rubbing aggressively",
     ],
     prohibitedActions: [
-      "Never mix different cleaning products together",
+      "Never mix different cleaning products or chemicals together",
       "Do not apply excessive heat to protein-based stains (e.g. blood, milk)",
-      "Do not scrub delicate fabrics aggressively",
+      "Do not scrub delicate fabrics or varnished surfaces aggressively",
     ],
     escalationRequired: false,
     escalationReason: null,
@@ -196,21 +233,37 @@ export function evaluateSafety(text: string, proposedActions?: string[]): Safety
 
 /**
  * Sanitizes or validates a generated solution plan against safety rules.
- * If model output mentions prohibited actions (like mixing bleach or using heat dangerously),
- * it flags or strips them.
+ * If model output mentions prohibited actions (like mixing bleach, using water on grease fires,
+ * or applying water to electrical outlets), it flags violations to trigger circuit breakers.
  */
 export function sanitizeProposedPlan(
   assessment: SafetyAssessment,
   proposedSteps: string[]
 ): { isSafe: boolean; violations: string[] } {
   const violations: string[] = [];
-  const combined = proposedSteps.join(" ").toLowerCase();
+  const combined = proposedSteps.join(" ");
 
+  // Prohibit incompatible chemical combinations
   if (
-    (combined.includes("bleach") && combined.includes("ammonia")) ||
-    (combined.includes("bleach") && combined.includes("vinegar"))
+    /bleach.*(ammonia|vinegar|acid|alcohol|rubbing alcohol|isopropanol|peroxide|drain|toilet)/i.test(combined) ||
+    /(ammonia|vinegar|acid|alcohol|rubbing alcohol|isopropanol|peroxide|drain|toilet).*bleach/i.test(combined)
   ) {
-    violations.push("Model output recommended mixing incompatible chemicals.");
+    violations.push("Model output recommended mixing bleach with incompatible chemicals.");
+  }
+
+  // Prohibit generic mixing of multiple cleaners
+  if (/(mix|combine|blend)\s+(together\s+)?(two|multiple|different)?\s*(cleaners|chemicals|solutions|bleach|detergents)/i.test(combined)) {
+    violations.push("Model output recommended combining multiple cleaning products.");
+  }
+
+  // Prohibit water on grease / oil fires
+  if (/(throw|pour|use|apply|spray)\s+water.*(grease|oil|pan|stove\s+fire)/i.test(combined)) {
+    violations.push("Model output recommended applying water to a grease or oil fire.");
+  }
+
+  // Prohibit water on live electrical equipment
+  if (/(throw|pour|use|apply|spray)\s+(water|wet)\s+.*(outlet|breaker|socket|live\s+wire)/i.test(combined)) {
+    violations.push("Model output recommended water on electrical outlet or equipment.");
   }
 
   if (assessment.escalationRequired && proposedSteps.length > 0) {

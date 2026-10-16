@@ -76,9 +76,10 @@ export const FollowUpModal: React.FC<FollowUpModalProps> = ({
                     <button
                       key={opt}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => handleSelectOption(q.id, opt)}
                       disabled={isLoading}
-                      className={`text-left p-3 rounded-xl border text-xs font-medium transition-all ${
+                      className={`text-left p-3 rounded-xl border text-xs font-medium transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${
                         isSelected
                           ? "border-brand-600 bg-brand-50 text-brand-900 ring-2 ring-brand-500/20 font-semibold"
                           : "border-slate-200 bg-slate-50/60 hover:bg-slate-100 text-slate-700"

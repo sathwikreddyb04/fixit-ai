@@ -12,6 +12,8 @@ export const SafetyAlertBanner: React.FC<SafetyAlertBannerProps> = ({ safety, on
 
   return (
     <div
+      role="alert"
+      aria-live="assertive"
       className={`rounded-2xl border-2 p-6 shadow-lg space-y-5 animate-in slide-in-from-top-4 duration-300 ${
         isCritical
           ? "bg-rose-50 border-rose-500 text-rose-950"

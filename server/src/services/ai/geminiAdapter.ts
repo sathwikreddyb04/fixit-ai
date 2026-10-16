@@ -30,7 +30,7 @@ export class GeminiMultimodalAdapter implements AIServiceInterface {
   }
 
   private async callGemini(contents: any[], systemInstruction?: string): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelName}:generateContent?key=${this.apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelName}:generateContent`;
 
     const body: any = {
       contents,
@@ -46,15 +46,35 @@ export class GeminiMultimodalAdapter implements AIServiceInterface {
       };
     }
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    let response: globalThis.Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": this.apiKey,
+        },
+        signal: AbortSignal.timeout(20000), // 20s timeout
+        body: JSON.stringify(body),
+      });
+    } catch (netErr: any) {
+      if (netErr.name === "TimeoutError") {
+        throw new Error("AI provider request timed out after 20 seconds. Please check your connection.");
+      }
+      throw new Error(`AI provider network failure: ${netErr.message || "Unable to reach service."}`);
+    }
 
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error("AI provider rate limit exceeded (HTTP 429). Please wait a moment and try again.");
+      }
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("AI provider authentication failed (HTTP 401/403). Please verify your GEMINI_API_KEY.");
+      }
       const errText = await response.text();
-      throw new Error(`Gemini API error (HTTP ${response.status}): ${errText}`);
+      // Safely trim and truncate error text to prevent secret reflection
+      const safeSnippet = errText.slice(0, 200).replace(this.apiKey, "[REDACTED]");
+      throw new Error(`Gemini API error (HTTP ${response.status}): ${safeSnippet}`);
     }
 
     const json = (await response.json()) as any;
@@ -140,7 +160,11 @@ CRITICAL RULES:
       ...(parsed.reportedFacts || []),
       parsed.stainOrIssueCategory || "",
     ].join(" ");
-    const finalSafety = evaluateSafety(combinedOutputText);
+    const finalSafety = evaluateSafety(
+      combinedOutputText,
+      undefined,
+      parsed.visibleObservations
+    );
 
     // Build evidence items
     const evidence: EvidenceItem[] = [
@@ -162,6 +186,30 @@ CRITICAL RULES:
         timestamp,
       });
     }
+
+    evidence.push({
+      claim: `Classification as ${parsed.stainOrIssueCategory || "general stain"}.`,
+      status: "inferred_uncertain",
+      sourceType: "model_inference",
+      explanation: "Inferred from Gemini multimodal vision and language analysis; not confirmed by laboratory analysis.",
+      timestamp,
+    });
+
+    evidence.push({
+      claim: "Substrate dye colorfastness under wet treatment.",
+      status: "not_checked",
+      sourceType: "reference_material",
+      explanation: "Fabric dye stability has not been checked; spot test required before proceeding.",
+      timestamp,
+    });
+
+    evidence.push({
+      claim: "Exact chemical purity or concentration of substance.",
+      status: "unable_to_determine",
+      sourceType: "reference_material",
+      explanation: "Cannot determine chemical concentration or internal fabric absorption from photography alone.",
+      timestamp,
+    });
 
     const analysis: ProblemAnalysis = {
       problemId,

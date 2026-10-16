@@ -111,11 +111,20 @@ export const ProblemInputForm: React.FC<ProblemInputFormProps> = ({ onSubmit, is
 
           {!imageFile ? (
             <div
+              role="button"
+              tabIndex={0}
+              aria-label="Upload photo of your problem or stain"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
                 isDragging
                   ? "border-brand-500 bg-brand-50/50"
                   : "border-slate-300 hover:border-brand-400 bg-slate-50/50 hover:bg-slate-50"
@@ -135,7 +144,7 @@ export const ProblemInputForm: React.FC<ProblemInputFormProps> = ({ onSubmit, is
                   <span className="font-semibold text-brand-700">Click to upload photo</span> or drag & drop
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  Allows visual pattern analysis (or honest demo simulated observation)
+                  Optional: helps identify the stain or material more accurately
                 </p>
               </div>
             </div>
@@ -158,7 +167,8 @@ export const ProblemInputForm: React.FC<ProblemInputFormProps> = ({ onSubmit, is
                 type="button"
                 onClick={handleRemoveImage}
                 disabled={isLoading}
-                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Remove uploaded image"
+                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500"
                 title="Remove image"
               >
                 <X className="w-4 h-4" />
@@ -169,7 +179,10 @@ export const ProblemInputForm: React.FC<ProblemInputFormProps> = ({ onSubmit, is
 
         {/* Error message */}
         {errorMsg && (
-          <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+          <div
+            role="alert"
+            className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium"
+          >
             {errorMsg}
           </div>
         )}

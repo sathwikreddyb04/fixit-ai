@@ -5,7 +5,7 @@ import {
   UserFeedback,
   TroubleshootingResult,
 } from "@fixit/shared";
-import { api, HealthResponse } from "./services/api";
+import { api } from "./services/api";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { HowItWorksModal } from "./components/HowItWorksModal";
@@ -16,10 +16,10 @@ import { EvidenceView } from "./features/analysis/EvidenceView";
 import { FollowUpModal } from "./features/follow-up/FollowUpModal";
 import { SolutionView } from "./features/solution/SolutionView";
 import { TroubleshootingModal } from "./features/feedback/TroubleshootingModal";
-import { AlertCircle, CheckCircle2, Sparkles } from "lucide-react";
+import { AlertCircle, CheckCircle2, Sparkles, AlertTriangle, RefreshCw } from "lucide-react";
 
 export const App: React.FC = () => {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,14 +38,34 @@ export const App: React.FC = () => {
     "did_not_work" | "need_alternative"
   >("did_not_work");
 
-  // Load health on mount
-  useEffect(() => {
+  const checkBackendConnection = () => {
     api
       .getHealth()
-      .then((data) => setHealth(data))
+      .then(() => {
+        setIsOffline(false);
+      })
       .catch((err) => {
         console.warn("Backend health check failed:", err);
+        setIsOffline(true);
       });
+  };
+
+  // Load health on mount
+  useEffect(() => {
+    checkBackendConnection();
+  }, []);
+
+  // Keyboard accessibility: ESC closes open modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsHowItWorksOpen(false);
+        setIsMissionsOpen(false);
+        setIsTroubleshootingOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const handleReset = async () => {
@@ -156,15 +176,11 @@ export const App: React.FC = () => {
     }
   };
 
-  const isDemo = health?.ai ? health.ai.isDemo : true;
-  const providerName = health?.ai ? health.ai.provider : "deterministic-demo";
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* Header */}
       <Header
-        isDemoMode={isDemo}
-        providerName={providerName}
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         onOpenMissions={() => setIsMissionsOpen(true)}
         onReset={handleReset}
@@ -172,6 +188,29 @@ export const App: React.FC = () => {
 
       {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* Offline Banner */}
+        {isOffline && (
+          <div
+            role="alert"
+            className="p-4 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-in fade-in"
+          >
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+              <span>
+                <strong>Service Disconnected:</strong> Cannot connect to FixIt AI backend on port 4000. Ensure the server is running with <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">npm run dev</code>.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={checkBackendConnection}
+              className="px-3.5 py-1.5 bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-sm self-end sm:self-auto"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry Connection</span>
+            </button>
+          </div>
+        )}
+
         {/* Hero Banner (when no problem analyzed yet) */}
         {!analysis && (
           <div className="text-center space-y-3 py-6">

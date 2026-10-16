@@ -31,20 +31,27 @@ router.post("/:missionId/toggle", (req: Request, res: Response): void => {
     return;
   }
 
-  const success = MissionRegistry.setEnabled(missionId, enabled);
-  if (!success) {
-    res.status(404).json({
-      success: false,
-      error: `Mission '${missionId}' not found.`,
-    });
-    return;
-  }
+  try {
+    const success = MissionRegistry.setEnabled(missionId, enabled);
+    if (!success) {
+      res.status(404).json({
+        success: false,
+        error: `Mission '${missionId}' not found.`,
+      });
+      return;
+    }
 
-  res.status(200).json({
-    success: true,
-    message: `Mission '${missionId}' enabled state set to ${enabled}.`,
-    mission: MissionRegistry.get(missionId)?.definition,
-  });
+    res.status(200).json({
+      success: true,
+      message: `Mission '${missionId}' enabled state set to ${enabled}.`,
+      mission: MissionRegistry.get(missionId)?.definition,
+    });
+  } catch (err: any) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+    });
+  }
 });
 
 /**

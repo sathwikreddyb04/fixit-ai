@@ -62,7 +62,12 @@ export const MissionsDrawer: React.FC<MissionsDrawerProps> = ({ isOpen, onClose 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="missions-drawer-title"
+      className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white w-full max-w-xl h-full shadow-2xl flex flex-col border-l border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -71,7 +76,7 @@ export const MissionsDrawer: React.FC<MissionsDrawerProps> = ({ isOpen, onClose 
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">
+              <h3 id="missions-drawer-title" className="font-bold text-slate-900 text-base">
                 Hackathon Mission Registry
               </h3>
               <p className="text-xs text-slate-500">
@@ -81,7 +86,8 @@ export const MissionsDrawer: React.FC<MissionsDrawerProps> = ({ isOpen, onClose 
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors"
+            aria-label="Close missions drawer"
+            className="p-1 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-600"
           >
             <X className="w-5 h-5" />
           </button>

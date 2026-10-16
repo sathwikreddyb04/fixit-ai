@@ -115,6 +115,9 @@ export class MissionRegistry {
   public static setEnabled(id: string, enabled: boolean): boolean {
     const mod = this.missions.get(id);
     if (!mod) return false;
+    if (mod.definition.status === "planned" && enabled && !mod.execute) {
+      throw new Error(`Cannot enable placeholder mission '${id}' without an implemented handler.`);
+    }
     mod.definition.enabled = enabled;
     if (mod.definition.status === "implemented" && !enabled) {
       mod.definition.status = "disabled";

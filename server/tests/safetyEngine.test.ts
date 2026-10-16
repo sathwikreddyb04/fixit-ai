@@ -7,7 +7,7 @@ describe("Safety Engine — Server-Side Enforcement", () => {
     expect(assessment.riskLevel).toBe("low");
     expect(assessment.escalationRequired).toBe(false);
     expect(assessment.permittedActions.length).toBeGreaterThan(0);
-    expect(assessment.prohibitedActions).toContain("Never mix different cleaning products together");
+    expect(assessment.prohibitedActions).toContain("Never mix different cleaning products or chemicals together");
   });
 
   it("intercepts hazardous chemical mixing (bleach + ammonia)", () => {
@@ -23,6 +23,21 @@ describe("Safety Engine — Server-Side Enforcement", () => {
     const assessment = evaluateSafety("I poured vinegar then bleach onto the bathroom mold");
     expect(assessment.riskLevel).toBe("critical");
     expect(assessment.escalationRequired).toBe(true);
+  });
+
+  it("intercepts hazardous chemical mixing (bleach + rubbing alcohol / isopropanol)", () => {
+    const assessment = evaluateSafety("I cleaned the counter with rubbing alcohol and then wiped it down with bleach");
+    expect(assessment.riskLevel).toBe("critical");
+    expect(assessment.escalationRequired).toBe(true);
+  });
+
+  it("intercepts cooking grease and oil fire hazards", () => {
+    const assessment = evaluateSafety("My frying pan of cooking oil caught fire on the stove");
+    expect(assessment.riskLevel).toBe("critical");
+    expect(assessment.escalationRequired).toBe(true);
+    expect(assessment.riskCategories).toContain("Grease & Oil Fire Hazard");
+    expect(assessment.prohibitedActions).toContain("NEVER throw water or wet towels on a grease or oil fire (causes explosive fireball)");
+    expect(assessment.emergencyGuidance).toContain("NEVER throw water on a grease fire");
   });
 
   it("intercepts electrical fire hazards", () => {
@@ -48,6 +63,17 @@ describe("Safety Engine — Server-Side Enforcement", () => {
     expect(assessment.riskCategories).toContain("Structural Safety");
   });
 
+  it("evaluates visible image observations in combination with text", () => {
+    const assessment = evaluateSafety(
+      "Cleaning this wall stain",
+      undefined,
+      ["Visible continuous sparks and black scorch marks emanating from energized outlet socket"]
+    );
+    expect(assessment.riskLevel).toBe("critical");
+    expect(assessment.escalationRequired).toBe(true);
+    expect(assessment.riskCategories).toContain("Electrical & Fire Hazard");
+  });
+
   it("sanitizes and rejects model outputs that attempt to propose mixing bleach", () => {
     const assessment = evaluateSafety("I want to clean a dirty floor");
     const dangerousSteps = [
@@ -57,6 +83,14 @@ describe("Safety Engine — Server-Side Enforcement", () => {
     const sanitization = sanitizeProposedPlan(assessment, dangerousSteps);
     expect(sanitization.isSafe).toBe(false);
     expect(sanitization.violations.length).toBeGreaterThan(0);
-    expect(sanitization.violations[0]).toContain("mixing incompatible chemicals");
+    expect(sanitization.violations[0]).toContain("mixing bleach");
+  });
+
+  it("sanitizes and rejects model outputs that attempt to propose water on grease fire", () => {
+    const assessment = evaluateSafety("Pan on fire with grease");
+    const dangerousSteps = ["Throw water on the pan to put out the grease fire immediately."];
+    const sanitization = sanitizeProposedPlan(assessment, dangerousSteps);
+    expect(sanitization.isSafe).toBe(false);
+    expect(sanitization.violations.some((v) => v.includes("grease or oil fire"))).toBe(true);
   });
 });

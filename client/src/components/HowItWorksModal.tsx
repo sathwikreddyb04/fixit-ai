@@ -10,7 +10,12 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="how-it-works-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 p-5 flex items-center justify-between">
@@ -18,11 +23,14 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ isOpen, onClos
             <div className="w-8 h-8 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center font-bold">
               ?
             </div>
-            <h3 className="font-bold text-lg text-slate-900">How FixIt AI Works</h3>
+            <h3 id="how-it-works-title" className="font-bold text-lg text-slate-900">
+              How FixIt AI Works
+            </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label="Close dialog"
+            className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
             <X className="w-5 h-5" />
           </button>
@@ -86,18 +94,9 @@ export const HowItWorksModal: React.FC<HowItWorksModalProps> = ({ isOpen, onClos
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 If an initial gentle step does not work, report what happened. FixIt AI reassesses safety
-                and suggests a secondary alternative without claiming false permanent model training.
+                and suggests a secondary alternative.
               </p>
             </div>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-900 space-y-1">
-            <p className="font-semibold">Honest AI & Demo Mode Disclosure:</p>
-            <p>
-              FixIt AI never fabricates image analysis or claims external sources were consulted unless
-              actually checked. When external credentials are not configured, FixIt AI operates in
-              Demo Mode with deterministic expert scenario guides.
-            </p>
           </div>
         </div>
 

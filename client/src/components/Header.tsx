@@ -2,16 +2,12 @@ import React from "react";
 import { Wrench, HelpCircle, Layers } from "lucide-react";
 
 interface HeaderProps {
-  isDemoMode: boolean;
-  providerName: string;
   onOpenHowItWorks: () => void;
   onOpenMissions: () => void;
   onReset: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  isDemoMode,
-  providerName,
   onOpenHowItWorks,
   onOpenMissions,
   onReset,
@@ -42,31 +38,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Status & Navigation */}
+        {/* Navigation */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Honest Demo Mode Indicator */}
-          <div
-            className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
-              isDemoMode
-                ? "bg-amber-50 text-amber-800 border-amber-200"
-                : "bg-emerald-50 text-emerald-800 border-emerald-200"
-            }`}
-            title={
-              isDemoMode
-                ? "Running in Honest Deterministic Demo Mode (No API key required)"
-                : `Connected to ${providerName}`
-            }
-          >
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isDemoMode ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
-              }`}
-            />
-            <span className="hidden md:inline">
-              {isDemoMode ? "Honest Demo Mode" : "AI Connected"}
-            </span>
-          </div>
-
           {/* Missions Pill */}
           <button
             onClick={onOpenMissions}

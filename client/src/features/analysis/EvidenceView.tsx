@@ -1,12 +1,69 @@
-import React from "react";
-import { User, Eye, HelpCircle, Info } from "lucide-react";
-import { ProblemAnalysis } from "@fixit/shared";
+import React, { useState } from "react";
+import { User, Eye, HelpCircle, Info, ChevronDown, ChevronUp, FileCheck } from "lucide-react";
+import { ProblemAnalysis, EvidenceStatus } from "@fixit/shared";
 
 interface EvidenceViewProps {
   analysis: ProblemAnalysis;
 }
 
+const STATUS_CONFIG: Record<
+  EvidenceStatus,
+  { label: string; bg: string; text: string; border: string; desc: string }
+> = {
+  confirmed_by_user: {
+    label: "Confirmed by User",
+    bg: "bg-emerald-50",
+    text: "text-emerald-800",
+    border: "border-emerald-200",
+    desc: "Provided directly by user in prompt",
+  },
+  observed_in_image: {
+    label: "Observed in Image",
+    bg: "bg-teal-50",
+    text: "text-teal-800",
+    border: "border-teal-200",
+    desc: "Visible visual trait extracted from photo",
+  },
+  inferred_uncertain: {
+    label: "Inferred (Uncertain)",
+    bg: "bg-amber-50",
+    text: "text-amber-800",
+    border: "border-amber-200",
+    desc: "Probabilistic inference, not verified",
+  },
+  not_checked: {
+    label: "Not Checked",
+    bg: "bg-slate-100",
+    text: "text-slate-700",
+    border: "border-slate-300",
+    desc: "Test patch or inspection not yet performed",
+  },
+  unable_to_determine: {
+    label: "Unable to Determine",
+    bg: "bg-orange-50",
+    text: "text-orange-800",
+    border: "border-orange-200",
+    desc: "Insufficient optical or reported data",
+  },
+  not_detected: {
+    label: "Not Detected",
+    bg: "bg-zinc-100",
+    text: "text-zinc-700",
+    border: "border-zinc-300",
+    desc: "Absence not guaranteed, but trait not seen",
+  },
+  not_listed: {
+    label: "Not Listed",
+    bg: "bg-stone-100",
+    text: "text-stone-700",
+    border: "border-stone-300",
+    desc: "Not present on provided care label/specs",
+  },
+};
+
 export const EvidenceView: React.FC<EvidenceViewProps> = ({ analysis }) => {
+  const [showLedger, setShowLedger] = useState(false);
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
       {/* Title & Classification Bar */}
@@ -98,6 +155,61 @@ export const EvidenceView: React.FC<EvidenceViewProps> = ({ analysis }) => {
           </ul>
         </div>
       </div>
+
+      {/* Structured Evidence Ledger (7 Distinct Statuses) */}
+      {analysis.evidence && analysis.evidence.length > 0 && (
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowLedger(!showLedger)}
+            aria-expanded={showLedger}
+            className="w-full flex items-center justify-between p-3.5 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-800 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <FileCheck className="w-4 h-4 text-brand-600" />
+              <span>Evidence Ledger ({analysis.evidence.length} claims verified / categorized)</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-500">
+              <span className="text-[11px] font-normal">{showLedger ? "Hide" : "Inspect claims"}</span>
+              {showLedger ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
+          </button>
+
+          {showLedger && (
+            <div className="p-4 bg-white border-t border-slate-200 space-y-2.5">
+              <p className="text-[11px] text-slate-500 mb-2">
+                FixIt AI separates verifiable facts from observations, unverified conditions, and limits:
+              </p>
+              <div className="grid gap-2">
+                {analysis.evidence.map((item, idx) => {
+                  const cfg = STATUS_CONFIG[item.status] || STATUS_CONFIG.not_checked;
+                  return (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-lg border border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="space-y-0.5 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span
+                            className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.text} ${cfg.border}`}
+                          >
+                            {cfg.label}
+                          </span>
+                          <span className="font-semibold text-slate-800">{item.claim}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-600">{item.explanation}</p>
+                      </div>
+                      <span className="text-[10px] font-mono bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-500 self-start sm:self-auto">
+                        source: {item.sourceType}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Uncertainty Notice Box */}
       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2.5 text-xs text-slate-600">

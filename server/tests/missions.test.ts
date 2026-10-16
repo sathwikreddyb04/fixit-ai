@@ -65,4 +65,14 @@ describe("Mission Registry & Contract Architecture", () => {
       .post("/api/v1/missions/care_label_symbols/toggle")
       .send({ enabled: true });
   });
+
+  it("Rejects enabling an unimplemented placeholder mission", async () => {
+    const res = await request(app)
+      .post("/api/v1/missions/eco_friendly_recipes/toggle")
+      .send({ enabled: true });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error).toContain("Cannot enable placeholder mission");
+  });
 });

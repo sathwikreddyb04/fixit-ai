@@ -128,16 +128,45 @@ export const SolutionView: React.FC<SolutionViewProps> = ({
           </div>
         </div>
 
+        {/* Progress Bar */}
+        <div
+          role="progressbar"
+          aria-valuenow={Object.values(completedSteps).filter(Boolean).length}
+          aria-valuemin={0}
+          aria-valuemax={plan.steps.length}
+          className="w-full bg-slate-100 h-2 rounded-full overflow-hidden"
+        >
+          <div
+            className="bg-brand-600 h-full rounded-full transition-all duration-300"
+            style={{
+              width: `${
+                plan.steps.length > 0
+                  ? (Object.values(completedSteps).filter(Boolean).length / plan.steps.length) * 100
+                  : 0
+              }%`,
+            }}
+          />
+        </div>
+
         <div className="space-y-3">
           {plan.steps.map((step) => {
             const isDone = !!completedSteps[step.stepNumber];
             return (
               <div
                 key={step.stepNumber}
+                role="checkbox"
+                tabIndex={0}
+                aria-checked={isDone}
                 onClick={() => toggleStep(step.stepNumber)}
-                className={`p-4 rounded-xl border transition-all cursor-pointer select-none ${
+                onKeyDown={(e) => {
+                  if (e.key === " " || e.key === "Enter") {
+                    e.preventDefault();
+                    toggleStep(step.stepNumber);
+                  }
+                }}
+                className={`p-4 rounded-xl border transition-all cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
                   isDone
-                    ? "bg-slate-50/80 border-slate-200 opacity-70"
+                    ? "bg-slate-50/80 border-slate-200 opacity-75"
                     : "bg-white border-slate-200 hover:border-brand-300 hover:shadow-sm"
                 }`}
               >

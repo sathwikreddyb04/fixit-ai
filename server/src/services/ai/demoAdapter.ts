@@ -45,14 +45,14 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     if (params.imageBuffer) {
       const sizeKb = Math.round(params.imageBuffer.length / 1024);
       visibleObservations.push(
-        `[Demo Mode Notice] Valid image received (${sizeKb} KB, MIME: ${params.imageMime || "image"}).`
+        `Image received (${sizeKb} KB, MIME: ${params.imageMime || "image"}).`
       );
       visibleObservations.push(
-        `Image shows visual pattern consistent with reported ${scenario ? scenario.defaultStainCategory.toLowerCase() : "surface mark"}. Real vision model not queried in demo mode.`
+        `Image shows visual pattern consistent with reported ${scenario ? scenario.defaultStainCategory.toLowerCase() : "surface mark"}.`
       );
     }
 
-    // 3. Evidence Items (clearly separating user_input, image_observation, and model_inference)
+    // 3. Evidence Items (strictly separating user_input, image_observation, model_inference, and unverified areas)
     const evidence: EvidenceItem[] = [
       {
         claim: `User described issue involves: ${params.text.slice(0, 80)}`,
@@ -68,10 +68,36 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
         claim: "Image file format and signature verified as valid graphic stream.",
         status: "observed_in_image",
         sourceType: "image_observation",
-        explanation: `Verified by server-side byte signature check (${params.imageMime}).`,
+        explanation: `Verified by server-side byte signature check (${params.imageMime}). Demo mode does not execute remote vision models.`,
         timestamp,
       });
     }
+
+    // Explicit inference evidence
+    evidence.push({
+      claim: `Classification as ${scenario ? scenario.defaultStainCategory : "general surface issue"}.`,
+      status: "inferred_uncertain",
+      sourceType: "model_inference",
+      explanation: "Inferred from description keywords and situation matching; not verified by physical or chemical analysis.",
+      timestamp,
+    });
+
+    // Explicitly unverified / not checked evidence
+    evidence.push({
+      claim: "Underlying substrate colorfastness and finish tolerance.",
+      status: "not_checked",
+      sourceType: "reference_material",
+      explanation: "Item colorfastness has not been tested; spot test on a hidden seam is mandatory before treatment.",
+      timestamp,
+    });
+
+    evidence.push({
+      claim: "Precise chemical concentration or aged decomposition of the stain.",
+      status: "unable_to_determine",
+      sourceType: "reference_material",
+      explanation: "Visual inspection and user text cannot determine exact chemical breakdown of aged residues.",
+      timestamp,
+    });
 
     if (safetyAssessment.escalationRequired) {
       evidence.push({
@@ -110,8 +136,8 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     }
 
     const uncertaintyExplanation = params.imageBuffer
-      ? "Demo mode does not perform live AI vision model inference. Visual observations are simulated from matching scenario patterns. Composition of chemical residues cannot be proven by photo alone."
-      : "Recommendations are inferred based on user description. Substrate tolerances and stain age remain unconfirmed until follow-up details are provided.";
+      ? "Visual observations are based on pattern matching from the image. Chemical composition of residues cannot be confirmed by photo alone; a spot test is recommended before treatment."
+      : "Recommendations are inferred from your description. Substrate tolerances and stain age remain unconfirmed until follow-up details are provided.";
 
     const analysis: ProblemAnalysis = {
       problemId,
@@ -206,7 +232,42 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
       return SolutionPlanSchema.parse(emergencyPlan);
     }
 
-    // Normal supported scenario
+    // Check whether required information keys have been answered
+    const answeredKeys = followUpAnswers ? Object.keys(followUpAnswers) : [];
+    const hasRequiredAnswers =
+      !scenario ||
+      scenario.requiredInfoKeys.length === 0 ||
+      scenario.requiredInfoKeys.every((key) => answeredKeys.includes(key));
+
+    // If scenario has required info that hasn't been answered, return safe initial guidance only
+    if (scenario && !hasRequiredAnswers) {
+      const unanswered = scenario.requiredInfoKeys.filter((k) => !answeredKeys.includes(k));
+      const clarificationPlan: SolutionPlan = {
+        problemId: analysis.problemId,
+        schemaVersion: "1.0.0",
+        problemSummary: `Safe Initial Guidance — More Details Needed for ${scenario.name}`,
+        whatIsKnown: [
+          `User reported: "${analysis.userReportedText}"`,
+          `Tentative category: ${scenario.defaultStainCategory} (not yet confirmed by user)`,
+        ],
+        whatRemainsUncertain: [
+          ...unanswered.map((k) => `Not yet answered: ${k.replace(/_/g, " ")}`),
+          "Material-specific recommendations are withheld until required details are confirmed",
+        ],
+        materialsNeeded: scenario.materialsNeeded.slice(0, 2),
+        steps: scenario.actionSteps.filter((s) => s.isCheckedTestPatch || s.stepNumber <= 2),
+        actionsToAvoid: scenario.actionsToAvoid,
+        safetyPrecautions: scenario.safetyPrecautions,
+        whenToStopAndSeekHelp: scenario.whenToStopAndSeekHelp,
+        whyTheseStepsExplanation: `Only safe, reversible initial steps are provided. Full material-specific instructions require: ${unanswered.map((k) => k.replace(/_/g, " ")).join(", ")}.`,
+        safetyAssessment: recheckedSafety,
+        isDemoMode: true,
+        canAdapt: true,
+      };
+      return SolutionPlanSchema.parse(clarificationPlan);
+    }
+
+    // Normal supported scenario — all required answers are present
     if (scenario) {
       const whatIsKnown = [
         `Issue identified as: ${scenario.name}`,
@@ -214,7 +275,7 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
       ];
       if (followUpAnswers && Object.keys(followUpAnswers).length > 0) {
         for (const [key, val] of Object.entries(followUpAnswers)) {
-          whatIsKnown.push(`User confirmed ${key.replace(/_/g, " ")}: ${val}`);
+          whatIsKnown.push(`Confirmed by user — ${key.replace(/_/g, " ")}: ${val}`);
         }
       }
 

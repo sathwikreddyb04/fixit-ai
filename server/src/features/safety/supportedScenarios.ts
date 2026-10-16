@@ -395,6 +395,163 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
       "Dish detergents contain concentrated lipophilic surfactants engineered to dissolve food grease that ordinary laundry wash can miss at low temperatures.",
   },
   {
+    id: "vague_upholstery_stain",
+    name: "Unidentified Stain on Sofa or Upholstered Item",
+    keywords: ["sofa", "couch", "upholstery", "armchair", "cushion", "settee", "loveseat"],
+    defaultStainCategory: "Unidentified Stain on Upholstered Surface",
+    defaultSurface: "Upholstered Furniture (Material Unknown)",
+    requiredInfoKeys: ["upholstery_material", "stain_substance"],
+    followUpQuestions: [
+      {
+        id: "upholstery_material",
+        question: "What material is the sofa or upholstered item made of?",
+        reason:
+          "Leather, synthetic fabric, and natural fabric all require completely different cleaning agents. Using the wrong one can permanently stain or crack the surface.",
+        type: "single_choice" as const,
+        options: [
+          "Fabric / Woven Textile (e.g. linen, polyester blend)",
+          "Real or Faux Leather",
+          "Velvet or Microsuede",
+          "I am not sure — no visible label",
+        ],
+        required: true,
+      },
+      {
+        id: "stain_substance",
+        question: "What caused the stain, if you know?",
+        reason:
+          "Different substances (oil, water-based drink, ink, food) require different treatment chemistry. Guessing the wrong category can worsen the stain.",
+        type: "single_choice" as const,
+        options: [
+          "Water-based drink (e.g. juice, tea, coffee)",
+          "Food or oil-based (e.g. sauce, grease)",
+          "Ink or dye",
+          "Unknown substance",
+        ],
+        required: true,
+      },
+    ],
+    materialsNeeded: [
+      "Clean white microfiber cloths",
+      "Mild unscented liquid soap diluted in water",
+      "Cold water for rinsing",
+    ],
+    actionSteps: [
+      {
+        stepNumber: 1,
+        title: "Blot — do not rub — to absorb excess",
+        instruction:
+          "Press a clean white cloth gently onto the stain to absorb as much moisture as possible. Do not rub, which spreads the stain and works it into the fabric weave.",
+      },
+      {
+        stepNumber: 2,
+        title: "Check the upholstery care code label",
+        instruction:
+          "Look for a care tag under the cushion or on the sofa frame. W = Water-safe cleaning; S = Solvent only; WS = Both; X = Vacuum only. This determines whether moisture-based cleaning is safe.",
+        isCheckedTestPatch: true,
+      },
+    ],
+    actionsToAvoid: [
+      "DO NOT scrub with colored cloths (may transfer dye)",
+      "DO NOT use unknown spray cleaners without checking the upholstery care code",
+      "DO NOT saturate with water if care label says S or X",
+    ],
+    safetyPrecautions: [
+      "Always check the care code label before applying any liquid",
+      "Test on a hidden seam if applying any cleaning agent",
+    ],
+    whenToStopAndSeekHelp: [
+      "If care label says 'X' (vacuum only) or 'S' (solvent only), consult a professional upholstery cleaner",
+      "For antique or high-value upholstered pieces, always seek professional advice",
+    ],
+    whyTheseStepsExplanation:
+      "Without knowing the material and stain type, only safe general first steps are given. Material-specific treatment is deferred until both the upholstery material and the staining substance are confirmed.",
+  },
+  {
+    id: "vague_fabric_spill",
+    name: "Unknown Spill on Clothing or Fabric (Details Missing)",
+    keywords: [
+      "spilled on my shirt",
+      "spill on shirt",
+      "something on my shirt",
+      "stain on my top",
+      "spill on my clothes",
+      "spilled on clothes",
+      "spill on jeans",
+      "stain on my jeans",
+      "spilled on my top",
+      "something spilled",
+    ],
+    defaultStainCategory: "Unidentified Spill on Fabric Garment",
+    defaultSurface: "Fabric Garment (Material Unknown)",
+    requiredInfoKeys: ["fabric_type", "spill_substance"],
+    followUpQuestions: [
+      {
+        id: "spill_substance",
+        question: "Do you know what the spill is?",
+        reason:
+          "The cleaning approach differs fundamentally between oil-based, water-based, and protein-based stains. Applying the wrong treatment first can permanently set the stain.",
+        type: "single_choice" as const,
+        options: [
+          "Hot or cold drink (coffee, juice, tea, wine)",
+          "Food with oil or grease",
+          "Ink or paint",
+          "Blood or protein-based substance",
+          "I don't know what it is",
+        ],
+        required: true,
+      },
+      {
+        id: "fabric_type",
+        question: "What type of fabric is the garment made of?",
+        reason:
+          "Delicate fabrics like silk, wool, and viscose need special care; water-based treatments safe for cotton can irreversibly damage these materials.",
+        type: "single_choice" as const,
+        options: [
+          "Cotton or polyester blend (everyday clothing)",
+          "Silk, wool, or viscose (delicate fabric)",
+          "Denim or canvas",
+          "Not sure — check care label",
+        ],
+        required: true,
+      },
+    ],
+    materialsNeeded: [
+      "Clean white absorbent cloth or paper towels",
+      "Cold water",
+    ],
+    actionSteps: [
+      {
+        stepNumber: 1,
+        title: "Blot immediately — absorb excess without rubbing",
+        instruction:
+          "Use a clean white paper towel or cloth to gently blot (press and lift) the spill. Avoid rubbing, which pushes the substance deeper into the fabric and spreads the affected area.",
+      },
+      {
+        stepNumber: 2,
+        title: "Check the garment care label",
+        instruction:
+          "Look at the inner seam label for care symbols: a tub icon means it is washable; 'Dry Clean Only' means take it to a professional. Do not apply any cleaning agent before checking.",
+        isCheckedTestPatch: true,
+      },
+    ],
+    actionsToAvoid: [
+      "DO NOT rub the stain",
+      "DO NOT apply hot water before knowing the stain type (heat can set many stains permanently)",
+      "DO NOT use bleach without knowing the fabric type and care label",
+    ],
+    safetyPrecautions: [
+      "Check care label before applying any cleaning product",
+      "Test any treatment on a hidden inner seam first",
+    ],
+    whenToStopAndSeekHelp: [
+      "If the garment says 'Dry Clean Only' — take it to a professional and mention the spill",
+      "If the fabric is silk, fine wool, or embroidered, consult a specialist",
+    ],
+    whyTheseStepsExplanation:
+      "Only safe, reversible first steps are provided until the fabric type and spill substance are confirmed. Material-specific treatment is deferred to prevent damage from incorrect assumptions.",
+  },
+  {
     id: "care_label_interpretation",
     name: "Garment Care Label Symbols & Instructions",
     keywords: ["care label", "symbol", "tag", "washing instructions", "dry clean", "bleach symbol"],
