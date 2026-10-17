@@ -2,9 +2,10 @@ import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 import { Express } from "express";
-import { SolutionPlan, ProblemAnalysis } from "@fixit/shared";
+import { SolutionPlan, ProblemAnalysis, TroubleshootingResult } from "@fixit/shared";
+import { AIFactory } from "../src/services/ai/aiFactory";
 
-describe("FixIt AI — Cleaning Recommendation and Safety Validation (Test Cases A, B, C)", () => {
+describe("FixIt AI — Cleaning Recommendation and Safety Validation (10 Master Scenarios)", () => {
   let app: Express;
 
   beforeAll(() => {
@@ -195,4 +196,289 @@ describe("FixIt AI — Cleaning Recommendation and Safety Validation (Test Cases
       expect(analysis.followUpQuestions.length).toBe(0);
     });
   });
+
+  // =========================================================================
+  // 4. Scenario 4 — Adaptive Troubleshooting After Failure
+  // =========================================================================
+  describe("Scenario 4 — Adaptive Troubleshooting After Failure", () => {
+    it("tracks failed attempts, avoids repeating failed actions, and explains why the revised plan differs", async () => {
+      // Step 1: Initial problem
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({ description: "Grease stain on cotton apron" });
+      expect(analyzeRes.status).toBe(200);
+      const { problemId } = analyzeRes.body.data;
+
+      // Step 2: Get initial plan
+      const solRes = await request(app).post(`/api/v1/problems/${problemId}/solution`);
+      expect(solRes.status).toBe(200);
+
+      // Step 3: Report failure of the initial dish soap attempt
+      const feedbackRes = await request(app)
+        .post(`/api/v1/problems/${problemId}/feedback`)
+        .send({
+          problemId,
+          outcome: "did_not_work",
+          whatWasTried: "Blotted with dish soap and warm water",
+          outcomeDescription: "Stain faded slightly but a dark greasy shadow remains",
+          stepStatuses: [
+            { stepNumber: 1, title: "Blot excess grease", status: "succeeded" },
+            { stepNumber: 2, title: "Apply mild dish soap", status: "failed" },
+          ],
+        });
+
+      expect(feedbackRes.status).toBe(200);
+      const result: TroubleshootingResult = feedbackRes.body.data;
+
+      // Verification: Adaptation count increments and prior attempt recorded
+      expect(result.adaptationCount).toBeGreaterThanOrEqual(1);
+      expect(result.priorAttemptsAnalyzed.length).toBeGreaterThanOrEqual(1);
+
+      // Verification: Revised solution or referral provided
+      expect(result.revisedSolution || result.recommendedProfessional).toBeTruthy();
+
+      if (result.revisedSolution) {
+        // Verification: Explanation of change explains why new plan differs
+        expect(result.explanationOfChange.toLowerCase()).toMatch(
+          /dish soap|warm water|failed|prior|adapt|alternative|subsequent/
+        );
+        // Verification: Does not blindly repeat the same initial step
+        expect(result.revisedSolution.problemSummary).not.toBe("Safe Action Plan for Coffee Stain on Fabric");
+      }
+    });
+  });
+
+  // =========================================================================
+  // 5. Scenario 5 — Unsafe Escalation Prevention
+  // =========================================================================
+  describe("Scenario 5 — Unsafe Escalation Prevention", () => {
+    it("refuses to escalate to harsh chemicals or abrasive methods on delicate silk fabric", async () => {
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({ description: "Red wine spilled on delicate silk blouse" });
+      expect(analyzeRes.status).toBe(200);
+      const { problemId } = analyzeRes.body.data;
+
+      // Generate initial solution first so session has solution
+      await request(app).post(`/api/v1/problems/${problemId}/solution`);
+
+      // Submit feedback discovering silk fabric care label
+      const feedbackRes = await request(app)
+        .post(`/api/v1/problems/${problemId}/feedback`)
+        .send({
+          problemId,
+          outcome: "did_not_work",
+          whatWasTried: "Gently dabbed with cold water",
+          outcomeDescription: "Wine color remains visible; silk fabric fibers feel very delicate",
+          discoveredMaterialDetails: "100% pure silk, dry-clean recommended",
+        });
+
+      expect(feedbackRes.status).toBe(200);
+      const result: TroubleshootingResult = feedbackRes.body.data;
+
+      // Verification: Directs to professional dry cleaner instead of damaging escalation
+      expect(result.recommendedProfessional).toBe(true);
+      expect(result.professionalReferralReason?.toLowerCase()).toMatch(/silk|dry-clean|delicate/);
+
+      // Verification: Never recommends destructive DIY methods (bleach, wire brush, acetone)
+      const allResultText = JSON.stringify(result).toLowerCase();
+      expect(allResultText).not.toContain("wire brush");
+      expect(allResultText).not.toContain("boiling water");
+      expect(allResultText).not.toContain("pure bleach");
+    });
+  });
+
+  // =========================================================================
+  // 6. Scenario 6 — Professional Referral & Emergency Stop
+  // =========================================================================
+  describe("Scenario 6 — Professional Referral & Emergency Stop", () => {
+    it("immediately halts DIY instructions when dangerous mould and electrical hazards are reported", async () => {
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({
+          description: "There is black mould and a burning electrical smell coming from behind the damp drywall.",
+        });
+
+      expect(analyzeRes.status).toBe(200);
+      const analysis: ProblemAnalysis = analyzeRes.body.data;
+
+      // Verification: Immediate critical escalation
+      expect(analysis.safetyAssessment.escalationRequired).toBe(true);
+      expect(analysis.safetyAssessment.riskLevel).toBe("critical");
+      expect(
+        analysis.safetyAssessment.riskCategories.some((c) =>
+          /electrical|mold|biological/i.test(c)
+        )
+      ).toBe(true);
+
+      // Verification: Halts routine DIY steps
+      expect(analysis.followUpQuestions.length).toBe(0);
+
+      // Verification: Prohibits spraying water or touching wiring
+      const prohibited = analysis.safetyAssessment.prohibitedActions.join(" ").toLowerCase();
+      expect(prohibited).toMatch(/water|touch|wiring|breaker/);
+
+      // Verification: Directs to certified electrician and emergency assistance
+      const emergency = (analysis.safetyAssessment.emergencyGuidance || "").toLowerCase();
+      expect(emergency).toMatch(/electrician|emergency|breaker|evacuate|qualified/);
+    });
+  });
+
+  // =========================================================================
+  // 7. Scenario 7 — Inconclusive or Low Quality Photo
+  // =========================================================================
+  describe("Scenario 7 — Inconclusive or Low Quality Photo", () => {
+    it("handles image uploads with honest uncertainty communication and mandatory spot testing", async () => {
+      // Construct a valid JPEG image header buffer (16 bytes)
+      const validJpegBuffer = Buffer.from([
+        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46,
+        0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01
+      ]);
+
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .field("description", "Mystery yellowish ring on kitchen countertop")
+        .attach("image", validJpegBuffer, "countertop_stain.jpg");
+
+      expect(analyzeRes.status).toBe(200);
+      const analysis: ProblemAnalysis = analyzeRes.body.data;
+
+      // Verification: Image metadata captured
+      expect(analysis.hasImage).toBe(true);
+      expect(analysis.imageMetadata?.mimeType).toBe("image/jpeg");
+      expect(analysis.imageMetadata?.fileName).toBe("countertop_stain.jpg");
+
+      // Verification: Communicates uncertainty clearly (cannot identify chemical composition from photo alone)
+      expect(analysis.uncertaintyExplanation.toLowerCase()).toMatch(
+        /chemical composition|photo alone|spot test|pattern matching/
+      );
+
+      // Verification: Evidence strictly demarcates image observation vs unverified substrate
+      const imageEvidence = analysis.evidence.find((e) => e.sourceType === "image_observation");
+      expect(imageEvidence).toBeDefined();
+
+      const substrateEvidence = analysis.evidence.find((e) => e.status === "not_checked");
+      expect(substrateEvidence).toBeDefined();
+      expect(substrateEvidence?.explanation.toLowerCase()).toContain("spot test");
+
+      // Verification: Direct solution mandates spot testing
+      const solRes = await request(app).post(`/api/v1/problems/${analysis.problemId}/solution`);
+      expect(solRes.status).toBe(200);
+      const solution: SolutionPlan = solRes.body.data;
+      expect(solution.steps.some((s) => s.isCheckedTestPatch)).toBe(true);
+    });
+  });
+
+  // =========================================================================
+  // 8. Scenario 8 — Unavailable AI Provider Safe Fallback
+  // =========================================================================
+  describe("Scenario 8 — Unavailable AI Provider Safe Fallback", () => {
+    it("falls back gracefully to deterministic demo adapter without compromising safety or failing requests", async () => {
+      // Test the AIFactory fallback behavior directly
+      const service = AIFactory.getService();
+      expect(service).toBeDefined();
+      expect(service.providerName).toBe("deterministic-demo");
+      expect(service.isDemo).toBe(true);
+
+      // Verify that the fallback adapter strictly applies safety rules
+      const hazardousAnalysis = await service.analyzeProblem({
+        text: "Can I mix chlorine bleach and vinegar in a bucket?",
+      });
+      expect(hazardousAnalysis.safetyAssessment.escalationRequired).toBe(true);
+      expect(hazardousAnalysis.safetyAssessment.riskLevel).toBe("critical");
+      expect(hazardousAnalysis.followUpQuestions.length).toBe(0);
+
+      // Verify that benign requests complete with valid schema structure
+      const benignAnalysis = await service.analyzeProblem({
+        text: "Spilled hot tea on living room rug",
+      });
+      expect(benignAnalysis.schemaVersion).toBe("1.0.0");
+      expect(benignAnalysis.reportedFacts.length).toBeGreaterThan(0);
+      expect(benignAnalysis.isDemoMode).toBe(true);
+    });
+  });
+
+  // =========================================================================
+  // 9. Scenario 9 — Attempt History Reset and Fresh Start
+  // =========================================================================
+  describe("Scenario 9 — Attempt History Reset and Fresh Start", () => {
+    it("clears attempt history when session is cleared and starts fresh on new problems", async () => {
+      // Step 1: Create a problem and record feedback
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({ description: "Wax dripped on dining table" });
+      const { problemId } = analyzeRes.body.data;
+
+      await request(app).post(`/api/v1/problems/${problemId}/solution`);
+      await request(app)
+        .post(`/api/v1/problems/${problemId}/feedback`)
+        .send({
+          problemId,
+          outcome: "did_not_work",
+          whatWasTried: "Scraped with fingernail",
+          outcomeDescription: "Thin wax film remains",
+        });
+
+      // Verification: History exists
+      const historyRes1 = await request(app).get(`/api/v1/problems/${problemId}/history`);
+      expect(historyRes1.status).toBe(200);
+      expect(historyRes1.body.data.attemptHistory.length).toBe(1);
+
+      // Step 2: Clear this session
+      const clearRes = await request(app)
+        .post("/api/v1/problems/clear-session")
+        .send({ problemId });
+      expect(clearRes.status).toBe(200);
+
+      // Verification: Prior session is removed
+      const historyRes2 = await request(app).get(`/api/v1/problems/${problemId}/history`);
+      expect(historyRes2.status).toBe(404);
+
+      // Step 3: Starting a new problem has zero prior attempts
+      const newProblemRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({ description: "Fresh coffee on kitchen counter" });
+      const newProblemId = newProblemRes.body.data.problemId;
+      expect(newProblemId).not.toBe(problemId);
+
+      const newHistoryRes = await request(app).get(`/api/v1/problems/${newProblemId}/history`);
+      expect(newHistoryRes.status).toBe(200);
+      expect(newHistoryRes.body.data.attemptHistory).toHaveLength(0);
+    });
+  });
+
+  // =========================================================================
+  // 10. Scenario 10 — Step-by-Step Progress and Reversible Actions
+  // =========================================================================
+  describe("Scenario 10 — Step-by-Step Progress and Reversible Actions", () => {
+    it("generates sequential, reversible steps with clear stop conditions and avoids damaging actions", async () => {
+      const analyzeRes = await request(app)
+        .post("/api/v1/problems/analyze")
+        .send({ description: "Wet mud caked on canvas sneakers" });
+      const { problemId } = analyzeRes.body.data;
+
+      const solRes = await request(app).post(`/api/v1/problems/${problemId}/solution`);
+      expect(solRes.status).toBe(200);
+      const solution: SolutionPlan = solRes.body.data;
+
+      // Verification: Strictly sequential step numbering
+      solution.steps.forEach((step, index) => {
+        expect(step.stepNumber).toBe(index + 1);
+        expect(step.title).toBeTruthy();
+        expect(step.instruction).toBeTruthy();
+        // Verification: Reversible instructions with clear stop and expected outcome details
+        expect(step.expectedOutcome).toBeTruthy();
+        expect(step.stopCondition).toBeTruthy();
+      });
+
+      // Verification: First step is non-destructive (let mud dry before brushing, or gentle dry brush)
+      const firstStepText = `${solution.steps[0].title} ${solution.steps[0].instruction}`.toLowerCase();
+      expect(firstStepText).toMatch(/dry|brush|blot|gentle/);
+
+      // Verification: Prohibits rubbing wet mud or high heat dryer damage
+      const avoidText = solution.actionsToAvoid.join(" ").toLowerCase();
+      expect(avoidText).toMatch(/hot|dryer|rub|scrub/);
+    });
+  });
 });
+

@@ -81,10 +81,11 @@ const SAFETY_RULES: SafetyRule[] = [
     id: "electrical_fire_hazard",
     category: "Electrical & Fire Hazard",
     patterns: [
-      /electrical.*(fire|spark|smoke|water|outlet|cord|burning)/i,
+      /electrical.*(fire|spark|smoke|water|outlet|cord|burning|smell|wire)/i,
+      /(burning|burnt|smoke|spark|fire).*electrical/i,
       /(spark|smoke|fire|burning).*outlet/i,
       /water.*(outlet|panel|breaker|fuse|socket|appliance)/i,
-      /burnt.*smell.*outlet/i,
+      /burnt.*smell.*(outlet|wall|drywall)/i,
       /exposed wire/i,
     ],
     riskLevel: "critical",
@@ -137,7 +138,7 @@ const SAFETY_RULES: SafetyRule[] = [
     category: "Hazardous Materials",
     patterns: [
       /battery acid|mercury|asbestos|lead paint|pesticide|insecticide|radiator fluid|antifreeze/i,
-      /black mold.*(widespread|entire wall|air duct)/i,
+      /black mo[u]?ld/i,
       /unknown.*(toxic|corrosive|radioactive|fuming)/i,
     ],
     riskLevel: "high",

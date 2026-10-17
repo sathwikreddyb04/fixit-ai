@@ -140,3 +140,32 @@ export interface MissionModule {
 }
 ```
 All missions are registered in `MissionRegistry`. New missions can be added by creating a single isolated file and registering it. Missions can be toggled on or off at runtime without affecting the core workflow.
+
+---
+
+## 8. Adaptive Troubleshooting & Attempt Tracking Engine
+
+FixIt AI implements a closed-loop troubleshooting state machine that prevents the common pitfalls of repetitive, dangerous DIY advice:
+
+1. **Attempt History Tracking (`AttemptRecord`)**:
+   - Each interaction tracks which steps were completed, succeeded, failed, or skipped.
+   - Preserves products used, remaining symptoms (e.g., residue rings, stiffness), and discovered material details.
+   - Exposes history via `GET /api/v1/problems/:id/history` for auditability.
+
+2. **Non-Repetition Invariant**:
+   - The adaptation engine inspects prior attempts before generating a revised plan.
+   - Does not repeat failed actions unless a clear, evidence-based reason exists (e.g. dwell time was insufficient).
+   - Generates an `explanationOfChange` explaining why the new approach differs.
+
+3. **Unsafe Non-Escalation & Professional Referral**:
+   - When initial gentle steps fail, the system forbids escalating to harsh chemicals (acetone, pure bleach, boiling water) or abrasive mechanical methods (wire brushes).
+   - If delicate fibers (100% silk, wool, dry-clean only) or structural damage are detected, ordinary DIY steps are halted and the user is referred to a qualified professional.
+
+4. **Context-Aware Fact Extraction & Safe Withholding**:
+   - Facts explicitly stated in problem descriptions (e.g. fabric type, freshness) are extracted directly into confirmed facts, eliminating redundant follow-ups.
+   - When essential context is missing (e.g., unidentified surface or substance), the system withholds material-specific chemicals and presents safe general initial actions (gentle blotting, locating care tags) until details are confirmed.
+
+5. **Clean Problem Reset**:
+   - Users can invoke `POST /api/v1/problems/clear-session` or start a new problem.
+   - Each problem is allocated a unique session ID in `SessionStore` with zero state leakage across sessions.
+

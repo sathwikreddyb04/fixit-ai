@@ -34,7 +34,7 @@ FixIt AI enforces **server-side safety controls**, separates **user facts** from
 - **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Lucide React icons.
 - **Backend**: Node.js 20, Express 4, TypeScript, Zod schema validation, Multer with magic-byte signature validation, Helmet, CORS, and Express-Rate-Limit.
 - **AI Engine**: Google Gemini Multimodal adapter (`gemini-1.5-flash`) + Deterministic Demo Adapter behind a provider-agnostic `AIServiceInterface`.
-- **Testing**: Vitest + Supertest (22 automated tests covering safety engine, magic-byte upload validation, API workflow, and mission registry).
+- **Testing**: Vitest + Supertest (46 automated tests covering the 10 core cleaning & safety scenarios, safety engine invariants, magic-byte upload validation, API workflows, mission registry, and adaptive troubleshooting).
 
 ---
 
@@ -58,7 +58,7 @@ Volt/
 │   │   ├── utils/                # Magic-byte file validation (JPEG, PNG, WebP)
 │   │   ├── app.ts                # Express app setup
 │   │   └── server.ts             # Server entrypoint
-│   └── tests/                    # Vitest unit and integration test suite
+│   └── tests/                    # Vitest unit and integration test suite (46 tests)
 ├── client/                       # React + Vite frontend
 │   └── src/
 │       ├── components/           # Header, Footer, HowItWorksModal, MissionsDrawer, SafetyAlert
@@ -73,7 +73,10 @@ Volt/
 ├── docs/
 │   ├── ARCHITECTURE.md           # System architecture, Mermaid diagrams, safety engine details
 │   ├── ADDING_A_MISSION.md       # 10-step guide for adding hackathon missions
-│   └── DEMO_SCRIPT.md            # 3-minute repeatable live demo script and pitch narrative
+│   ├── DEMO_SCRIPT.md            # 3-minute repeatable live demo script and pitch narrative
+│   └── DEPLOYMENT.md             # Production hosting, Docker containerization, and cloud setup
+├── TEST_REPORT.md                # 10-scenario comprehensive verification test report
+├── HACKATHON_SUBMISSION.md       # Full hackathon submission overview and jury talking points
 ├── .env.example                  # Documented environment variables template
 ├── .gitignore                    # Git ignore rules
 └── README.md
@@ -118,12 +121,12 @@ Visit **`http://localhost:5173`** in your browser.
 
 ## Quality Gates & Testing
 
-Run the automated test suite (22 unit and end-to-end tests):
+Run the automated test suite (46 unit and end-to-end tests covering all 10 scenarios):
 ```bash
-npm run test
+npm test --workspace=server
 ```
 
-Run TypeScript type checks and linting:
+Run TypeScript type checks and linting across all packages:
 ```bash
 npm run lint
 ```
@@ -132,6 +135,8 @@ Build all packages for production:
 ```bash
 npm run build
 ```
+
+See **[`TEST_REPORT.md`](file:///c:/Users/sathw/OneDrive/Documents/Volt/TEST_REPORT.md)** for detailed evidence and observations across all 10 verified scenarios.
 
 ---
 
@@ -144,6 +149,7 @@ npm run build
 | `/api/v1/problems/:id/follow-up` | `POST` | Submits targeted follow-up answers and returns solution plan |
 | `/api/v1/problems/:id/solution` | `POST` | Generates solution plan directly if no follow-ups were needed |
 | `/api/v1/problems/:id/feedback` | `POST` | Records feedback and generates session-adapted troubleshooting |
+| `/api/v1/problems/:id/history` | `GET` | Retrieves recorded attempt and troubleshooting history |
 | `/api/v1/problems/clear-session` | `POST` | Clears in-memory session cache |
 | `/api/v1/missions` | `GET` | Lists all registered hackathon missions and status |
 | `/api/v1/missions/:id/toggle` | `POST` | Enables or disables a mission feature flag |
