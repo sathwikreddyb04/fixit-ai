@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { X, RefreshCw, ArrowRight, Loader2, Info, AlertCircle } from "lucide-react";
-import { UserFeedback, SolutionPlan, TroubleshootingResult, FollowUpQuestion } from "@fixit/shared";
+import { UserFeedback, SolutionPlan, FollowUpQuestion } from "@fixit/shared";
 
 type StepStatus = "succeeded" | "failed" | "skipped" | "untried";
 

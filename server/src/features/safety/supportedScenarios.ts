@@ -61,7 +61,7 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         stepNumber: 1,
         title: "Blot immediately — Do not rub",
         instruction:
-          "Press clean paper towels or a dry white cloth gently on the stain to absorb excess liquid. Never rub back and forth, as rubbing pushes coffee deeper into the fabric fibers.",
+          "Gently blot the stain with clean paper towels or a dry white cloth to absorb excess liquid. Never rub back and forth, as rubbing pushes coffee deeper into the fabric fibers.",
         cautionNotes: "Avoid colored napkins that might bleed dye onto the garment.",
         expectedOutcome: "Excess liquid lifted from surface without spreading the perimeter.",
         stopCondition: "Stop and switch to gentle blotting if fabric starts to pill or abrade.",
@@ -537,7 +537,7 @@ export const SUPPORTED_SCENARIOS: SupportedScenario[] = [
         stepNumber: 1,
         title: "Blot — do not rub — to absorb excess",
         instruction:
-          "Press a clean white cloth gently onto the stain to absorb as much moisture as possible. Do not rub, which spreads the stain and works it into the fabric weave.",
+          "Gently blot the stain with a clean white cloth to absorb as much moisture as possible. Do not rub, which spreads the stain and works it into the fabric weave.",
         expectedOutcome: "Excess surface liquid is safely absorbed into cloth.",
         stopCondition: "Stop if rubbing motion begins to spread the stain.",
       },
@@ -777,3 +777,83 @@ export function findMatchingScenario(text: string): SupportedScenario | null {
   }
   return null;
 }
+
+/**
+ * Extracts confirmed facts directly from user description to avoid asking
+ * redundant follow-up questions for details the user already answered.
+ */
+export function extractKnownAnswers(text: string): Record<string, string> {
+  const lower = text.toLowerCase();
+  const answers: Record<string, string> = {};
+
+  // 1. Fabric Type & Washability
+  if (/\b(cotton\s*(t-shirt|tee|shirt|garment|pants|cloth)?)\b/i.test(lower)) {
+    answers["fabric_type"] = "Washable Cotton / Poly Blend";
+    answers["fabric_washability"] = "Yes, machine washable cotton or synthetic";
+  } else if (/\b(denim|canvas|linen|poly|polyester|synthetic)\b/i.test(lower)) {
+    if (/\b(poly|polyester|synthetic)\b/i.test(lower)) {
+      answers["fabric_type"] = "Synthetic / Athletic Fabric";
+      answers["fabric_washability"] = "Yes, machine washable cotton or synthetic";
+    } else {
+      answers["fabric_type"] = "Washable Cotton / Poly Blend";
+      answers["fabric_washability"] = "Yes, machine washable cotton or synthetic";
+    }
+  } else if (/\b(silk|wool|cashmere|dry clean only|dry-clean only)\b/i.test(lower)) {
+    answers["fabric_type"] = "Delicate Silk or Wool";
+    answers["fabric_washability"] = "No, dry-clean only or delicate";
+  }
+
+  // 2. Stain Freshness / Age
+  if (
+    /\b(five minutes ago|5 minutes ago|\d+\s*(mins?|minutes?|seconds?|secs?)\s*ago|just (spilled|happened|now)|fresh|within the hour)\b/i.test(lower)
+  ) {
+    answers["stain_freshness"] = "Fresh (spilled within the last hour)";
+  } else if (
+    /\b(dried|set-in|set in|yesterday|days ago|hours ago|last week|old stain|already washed)\b/i.test(lower)
+  ) {
+    answers["stain_freshness"] = "Dried / Set-in for several hours";
+  }
+
+  // 3. Shoe Material & Mud Dryness
+  if (/\b(canvas|mesh|running shoes?|sneakers?|athletic shoes?)\b/i.test(lower)) {
+    answers["shoe_material"] = "Canvas or Synthetic Mesh (e.g. running shoes)";
+  } else if (/\b(leather|suede|nubuck)\b/i.test(lower)) {
+    answers["shoe_material"] = "Genuine Leather or Suede";
+  }
+  if (/\b(dry|dried|crust|crusted|hardened|flaking)\b/i.test(lower)) {
+    answers["mud_dryness"] = "Completely dried into crust";
+  } else if (/\b(wet mud|fresh mud|still wet)\b/i.test(lower)) {
+    answers["mud_dryness"] = "Fresh, wet mud";
+  }
+
+  // 4. Food Oil / Grease
+  if (/\b(oil|grease|butter|greasy|oily|fried|curry|sauce|dressing|bacon)\b/i.test(lower)) {
+    answers["has_grease"] = "Yes, contains oil/grease/butter";
+  } else if (/\b(fruit juice|plain juice|syrup|water-based)\b/i.test(lower)) {
+    answers["has_grease"] = "No, water-based (like plain fruit juice or syrup)";
+  }
+
+  // 5. Upholstery Material
+  if (/\b(real leather|faux leather|leather sofa|leather couch|vinyl)\b/i.test(lower)) {
+    answers["upholstery_material"] = "Real or Faux Leather";
+  } else if (/\b(velvet|microsuede|suede sofa)\b/i.test(lower)) {
+    answers["upholstery_material"] = "Velvet or Microsuede";
+  } else if (/\b(linen sofa|cotton couch|fabric sofa|woven upholstery)\b/i.test(lower)) {
+    answers["upholstery_material"] = "Fabric / Woven Textile (e.g. linen, polyester blend)";
+  }
+
+  // 6. Stain / Spill Substance
+  if (/\b(coffee|tea|latte|espresso|juice|wine|cola|soda)\b/i.test(lower)) {
+    answers["stain_substance"] = "Water-based drink (e.g. juice, tea, coffee)";
+    answers["spill_substance"] = "Hot or cold drink (coffee, juice, tea, wine)";
+  } else if (/\b(food stain|grease stain|cooking oil|sauce stain|butter)\b/i.test(lower)) {
+    answers["stain_substance"] = "Food or oil-based (e.g. sauce, grease)";
+    answers["spill_substance"] = "Food with oil or grease";
+  } else if (/\b(ink|pen|dye|marker)\b/i.test(lower)) {
+    answers["stain_substance"] = "Ink or dye";
+    answers["spill_substance"] = "Ink or paint";
+  }
+
+  return answers;
+}
+

@@ -7,6 +7,8 @@ import {
   ProblemAnalysisSchema,
   SolutionPlanSchema,
   TroubleshootingResultSchema,
+  FollowUpQuestion,
+  SolutionStep,
 } from "@fixit/shared";
 import {
   AIServiceInterface,
@@ -17,6 +19,7 @@ import {
 import { evaluateSafety } from "../../features/safety/safetyEngine";
 import {
   findMatchingScenario,
+  extractKnownAnswers,
   SUPPORTED_SCENARIOS,
   SupportedScenario,
 } from "../../features/safety/supportedScenarios";
@@ -31,6 +34,7 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     const safetyAssessment = evaluateSafety(params.text);
 
     const scenario = findMatchingScenario(params.text);
+    const extractedAnswers = extractKnownAnswers(params.text);
 
     // 1. Separate Reported Facts
     const reportedFacts: string[] = [
@@ -38,6 +42,18 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     ];
     if (params.fileName) {
       reportedFacts.push(`User attached file: ${params.fileName}`);
+    }
+    if (extractedAnswers["fabric_type"]) {
+      reportedFacts.push(`Identified material: ${extractedAnswers["fabric_type"]} (extracted from user description)`);
+    }
+    if (extractedAnswers["stain_freshness"]) {
+      reportedFacts.push(`Identified stain freshness: ${extractedAnswers["stain_freshness"]} (extracted from user description)`);
+    }
+    if (extractedAnswers["shoe_material"]) {
+      reportedFacts.push(`Identified shoe material: ${extractedAnswers["shoe_material"]} (extracted from user description)`);
+    }
+    if (extractedAnswers["upholstery_material"]) {
+      reportedFacts.push(`Identified upholstery material: ${extractedAnswers["upholstery_material"]} (extracted from user description)`);
     }
 
     // 2. Visible Observations (Honest Demo disclosure)
@@ -111,14 +127,17 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
 
     // 4. Missing Information & Follow-Up Questions
     const missingInformation: string[] = [];
-    let followUps = scenario ? [...scenario.followUpQuestions] : [];
+    let followUps: FollowUpQuestion[] = [];
 
     if (safetyAssessment.escalationRequired) {
       // High-risk scenarios skip routine follow-ups to avoid delaying critical warning
       followUps = [];
     } else if (scenario) {
-      for (const reqKey of scenario.requiredInfoKeys) {
-        missingInformation.push(`Specific details needed: ${reqKey.replace(/_/g, " ")}`);
+      for (const q of scenario.followUpQuestions) {
+        if (!extractedAnswers[q.id]) {
+          followUps.push(q);
+          missingInformation.push(`Specific details needed: ${q.reason || q.id.replace(/_/g, " ")}`);
+        }
       }
     } else {
       missingInformation.push("Specific material or substrate type not identified");
@@ -135,8 +154,23 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
       ];
     }
 
+    let categoryConfidence: "high" | "moderate" | "low" | "uncertain" = "moderate";
+    if (scenario) {
+      if (followUps.length === 0) {
+        categoryConfidence = "high";
+      } else if (scenario.id.startsWith("vague_")) {
+        categoryConfidence = "uncertain";
+      } else {
+        categoryConfidence = "moderate";
+      }
+    } else {
+      categoryConfidence = "low";
+    }
+
     const uncertaintyExplanation = params.imageBuffer
       ? "Visual observations are based on pattern matching from the image. Chemical composition of residues cannot be confirmed by photo alone; a spot test is recommended before treatment."
+      : followUps.length === 0
+      ? "Core material and freshness details confirmed from your description. Underlying dye fastness requires a spot test on an unseen seam before full application."
       : "Recommendations are inferred from your description. Substrate tolerances and stain age remain unconfirmed until follow-up details are provided.";
 
     const analysis: ProblemAnalysis = {
@@ -156,7 +190,7 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
       visibleObservations,
       stainOrIssueCategory: scenario ? scenario.defaultStainCategory : "General Household Surface Issue",
       affectedSurfaceOrMaterial: scenario ? scenario.defaultSurface : "Unspecified Household Item",
-      categoryConfidence: scenario ? "high" : "moderate",
+      categoryConfidence,
       missingInformation,
       safetyAssessment,
       evidence,
@@ -173,8 +207,14 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     const { analysis, followUpAnswers } = params;
     const scenario = findMatchingScenario(analysis.userReportedText);
 
+    const extracted = extractKnownAnswers(analysis.userReportedText);
+    const mergedAnswers = {
+      ...extracted,
+      ...(followUpAnswers || {}),
+    };
+
     // Re-evaluate safety in case answers introduced a new chemical or hazard
-    const answersText = followUpAnswers ? Object.values(followUpAnswers).join(" ") : "";
+    const answersText = Object.values(mergedAnswers).join(" ");
     const recheckedSafety = evaluateSafety(
       `${analysis.userReportedText} ${answersText}`
     );
@@ -233,7 +273,7 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
     }
 
     // Check whether required information keys have been answered
-    const answeredKeys = followUpAnswers ? Object.keys(followUpAnswers) : [];
+    const answeredKeys = Object.keys(mergedAnswers);
     const hasRequiredAnswers =
       !scenario ||
       scenario.requiredInfoKeys.length === 0 ||
@@ -259,7 +299,7 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
         actionsToAvoid: scenario.actionsToAvoid,
         safetyPrecautions: scenario.safetyPrecautions,
         whenToStopAndSeekHelp: scenario.whenToStopAndSeekHelp,
-        whyTheseStepsExplanation: `Only safe, reversible initial steps are provided. Full material-specific instructions require: ${unanswered.map((k) => k.replace(/_/g, " ")).join(", ")}.`,
+        whyTheseStepsExplanation: `Only safe, reversible initial steps are provided. Full material-specific treatment recommendations are withheld until required details are confirmed: ${unanswered.map((k) => k.replace(/_/g, " ")).join(", ")}.`,
         safetyAssessment: recheckedSafety,
         isDemoMode: true,
         canAdapt: true,
@@ -273,8 +313,8 @@ export class DeterministicDemoAdapter implements AIServiceInterface {
         `Issue identified as: ${scenario.name}`,
         `Reported: "${analysis.userReportedText}"`,
       ];
-      if (followUpAnswers && Object.keys(followUpAnswers).length > 0) {
-        for (const [key, val] of Object.entries(followUpAnswers)) {
+      if (mergedAnswers && Object.keys(mergedAnswers).length > 0) {
+        for (const [key, val] of Object.entries(mergedAnswers)) {
           whatIsKnown.push(`Confirmed by user — ${key.replace(/_/g, " ")}: ${val}`);
         }
       }

@@ -107,8 +107,13 @@ export const App: React.FC = () => {
         const plan = await api.getDirectSolution(result.problemId);
         setSolution(plan);
       } else {
-        // Leave solution empty so FollowUpModal is shown
-        setSolution(null);
+        // Fetch safe initial guidance plan to provide immediate safe steps while waiting for answers
+        try {
+          const initialPlan = await api.getDirectSolution(result.problemId);
+          setSolution(initialPlan);
+        } catch {
+          setSolution(null);
+        }
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to analyze problem. Please try again.");
@@ -126,6 +131,7 @@ export const App: React.FC = () => {
 
       const res = await api.submitFollowUp(analysis.problemId, answers);
       setSolution(res.solution);
+      setAnalysis((prev) => (prev ? { ...prev, followUpQuestions: [] } : null));
       window.scrollTo({ top: 400, behavior: "smooth" });
     } catch (err: any) {
       setErrorMessage(err.message || "Failed to submit follow-up answers.");

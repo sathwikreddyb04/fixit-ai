@@ -10,6 +10,7 @@ import { config } from "../config";
 import { validateImageBuffer } from "../utils/fileValidation";
 import { AIFactory } from "../services/ai/aiFactory";
 import { SessionStore } from "../services/session/sessionStore";
+import { extractKnownAnswers } from "../features/safety/supportedScenarios";
 
 const router = Router();
 
@@ -73,6 +74,13 @@ router.post(
       // Save to in-memory session
       const session = SessionStore.getOrCreate(analysis.problemId);
       session.analysis = analysis;
+      const extractedAnswers = extractKnownAnswers(description);
+      if (Object.keys(extractedAnswers).length > 0) {
+        session.followUpAnswers = {
+          ...(session.followUpAnswers || {}),
+          ...extractedAnswers,
+        };
+      }
       SessionStore.save(session);
 
       res.status(200).json({

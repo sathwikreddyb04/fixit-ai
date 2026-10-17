@@ -22,7 +22,7 @@ describe("FixIt AI REST API End-to-End Workflow", () => {
     const res = await request(app)
       .post("/api/v1/problems/analyze")
       .send({
-        description: "I spilled hot black coffee on my white cotton shirt 10 minutes ago.",
+        description: "I spilled hot black coffee on my shirt.",
       });
 
     expect(res.status).toBe(200);
